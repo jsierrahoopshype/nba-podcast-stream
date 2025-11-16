@@ -1,0 +1,5 @@
+youtube-transcript-api==0.6.2
+google-api-python-client==2.108.0
+google-auth==2.25.2
+anthropic==0.39.0
+requests==2.31.0
