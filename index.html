@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Podcast Stream</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #e74c3c;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .video-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .video-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+
+        .video-thumbnail {
+            position: relative;
+            padding-bottom: 56.25%;
+            background: #000;
+            cursor: pointer;
+        }
+
+        .video-thumbnail img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70px;
+            height: 70px;
+            background: rgba(231, 76, 60, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .play-button:hover {
+            background: rgba(231, 76, 60, 1);
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        .play-button::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 20px solid white;
+            border-top: 12px solid transparent;
+            border-bottom: 12px solid transparent;
+            margin-left: 5px;
+        }
+
+        .video-iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+
+        .video-content {
+            padding: 20px;
+        }
+
+        .video-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .video-meta {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: #7f8c8d;
+        }
+
+        .channel-name {
+            font-weight: 500;
+            color: #e74c3c;
+        }
+
+        .video-date {
+            color: #95a5a6;
+        }
+
+        .transcript-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .transcript-yes {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .transcript-no {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .video-summary {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #555;
+            margin-top: 12px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+            font-size: 18px;
+        }
+
+        .error {
+            text-align: center;
+            padding: 60px 20px;
+            color: #e74c3c;
+            font-size: 16px;
+        }
+
+        .no-videos {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+
+        @media (max-width: 768px) {
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏀 NBA Podcast Stream</h1>
+            <p>Latest episodes from top NBA podcasts</p>
+        </div>
+
+        <div id="videoGrid" class="video-grid">
+            <div class="loading">Loading latest episodes...</div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURATION - Using your published CSV
+        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRr8GiFRfKLquD0j49JqKIL11tnulG7--WeJsvP3nqFc72EeQM3RsQjnWeXlgcVoR2RL5y7oqYbfpSs/pub?gid=16432109&single=true&output=csv';
+        const MAX_VIDEOS = 30;
+
+        // Function to parse CSV
+        function parseCSV(text) {
+            const lines = text.split('\n');
+            const result = [];
+            
+            for (let i = 1; i < lines.length; i++) { // Skip header
+                if (!lines[i].trim()) continue;
+                
+                const values = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let char of lines[i]) {
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        values.push(current.trim().replace(/^"|"$/g, ''));
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                values.push(current.trim().replace(/^"|"$/g, ''));
+                
+                if (values[0]) { // Has video ID
+                    result.push(values);
+                }
+            }
+            
+            return result;
+        }
+
+        // Function to format date
+        function formatDate(dateString) {
+            try {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffTime = Math.abs(now - date);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 0) return 'Today';
+                if (diffDays === 1) return 'Yesterday';
+                if (diffDays < 7) return `${diffDays} days ago`;
+                if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+                return date.toLocaleDateString();
+            } catch (e) {
+                return dateString;
+            }
+        }
+
+        // Function to play video
+        function playVideo(videoId, cardElement) {
+            const thumbnail = cardElement.querySelector('.video-thumbnail');
+            const iframe = document.createElement('iframe');
+            iframe.className = 'video-iframe';
+            iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+            iframe.allowFullscreen = true;
+            
+            thumbnail.appendChild(iframe);
+            iframe.style.display = 'block';
+            thumbnail.querySelector('img').style.display = 'none';
+            thumbnail.querySelector('.play-button').style.display = 'none';
+        }
+
+        // Function to create video card
+        function createVideoCard(video) {
+            const card = document.createElement('div');
+            card.className = 'video-card';
+
+            const hasTranscript = video.transcriptAvailable === 'Yes';
+            const hasSummary = video.summary && video.summary.trim().length > 0;
+
+            // Escape HTML in title and summary
+            const escapeHtml = (text) => {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            };
+
+            card.innerHTML = `
+                <div class="video-thumbnail" onclick="playVideo('${video.id}', this.parentElement)">
+                    <img src="${video.thumbnail}" alt="${escapeHtml(video.title)}">
+                    <div class="play-button"></div>
+                </div>
+                <div class="video-content">
+                    <h3 class="video-title">${escapeHtml(video.title)}</h3>
+                    <div class="video-meta">
+                        <span class="channel-name">${escapeHtml(video.channelName)}</span>
+                        <span class="video-date">${formatDate(video.publishedDate)}</span>
+                    </div>
+                    ${hasTranscript ? 
+                        '<span class="transcript-badge transcript-yes">Transcript Available</span>' : 
+                        '<span class="transcript-badge transcript-no">No Transcript</span>'
+                    }
+                    ${hasSummary ? 
+                        `<div class="video-summary">${escapeHtml(video.summary)}</div>` : 
+                        ''
+                    }
+                </div>
+            `;
+
+            return card;
+        }
+
+        // Function to load videos from published Google Sheet
+        async function loadVideos() {
+            const gridElement = document.getElementById('videoGrid');
+
+            try {
+                const response = await fetch(SHEET_CSV_URL);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch data from Google Sheets');
+                }
+
+                const csvText = await response.text();
+                const rows = parseCSV(csvText);
+
+                if (!rows || rows.length === 0) {
+                    gridElement.innerHTML = '<div class="no-videos">No videos available yet. Check back soon!</div>';
+                    return;
+                }
+
+                // Parse data
+                const videos = rows.slice(0, MAX_VIDEOS).map(row => ({
+                    id: row[0],
+                    title: row[1],
+                    channelName: row[2],
+                    publishedDate: row[3],
+                    thumbnail: row[4],
+                    description: row[5] || '',
+                    transcriptAvailable: row[6] || 'No',
+                    summary: row[7] || '',
+                    lastUpdated: row[8]
+                })).filter(video => video.id);
+
+                // Sort by published date (newest first)
+                videos.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+
+                // Clear loading message
+                gridElement.innerHTML = '';
+
+                // Create video cards
+                videos.forEach(video => {
+                    const card = createVideoCard(video);
+                    gridElement.appendChild(card);
+                });
+
+                console.log(`✓ Loaded ${videos.length} videos`);
+
+            } catch (error) {
+                console.error('Error loading videos:', error);
+                gridElement.innerHTML = `
+                    <div class="error">
+                        <p><strong>Unable to load videos</strong></p>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Load videos on page load
+        document.addEventListener('DOMContentLoaded', loadVideos);
+
+        // Reload videos every hour
+        setInterval(loadVideos, 60 * 60 * 1000);
+    </script>
+</body>
+</html>
