@@ -1,13 +1,13 @@
 """
-NBA Podcast Stream - Python Version
-Reliably fetches YouTube transcripts and generates AI summaries
+NBA Podcast Stream - Fixed Transcript Version
+Uses web scraping for reliable transcript extraction
 """
 
 import os
 import json
 import time
+import re
 from datetime import datetime, timedelta
-from youtube_transcript_api import YouTubeTranscriptApi
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 import anthropic
@@ -151,24 +151,60 @@ class YouTubeClient:
         return videos
 
 # ============================================
-# TRANSCRIPT FETCHER
+# IMPROVED TRANSCRIPT FETCHER
 # ============================================
 
 class TranscriptFetcher:
     @staticmethod
     def get_transcript(video_id):
-        """Fetch transcript for a YouTube video"""
+        """Fetch transcript using web scraping method"""
         try:
-            # Try to get English transcript
-            transcript_list = YouTubeTranscriptApi.get_transcript(
-                video_id,
-                languages=['en', 'en-US', 'en-GB']
-            )
+            # Get video page HTML
+            url = f'https://www.youtube.com/watch?v={video_id}'
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
             
-            # Join all text
-            full_text = ' '.join([entry['text'] for entry in transcript_list])
+            response = requests.get(url, headers=headers, timeout=10)
+            html = response.text
             
-            # Clean up
+            # Look for captions/transcript data in the page
+            # YouTube embeds this in ytInitialPlayerResponse
+            pattern = r'"captions".*?"captionTracks":\[(.*?)\]'
+            match = re.search(pattern, html)
+            
+            if not match:
+                print(f"✗ No captions found in page data")
+                return None
+            
+            # Extract the first caption track URL
+            caption_data = match.group(1)
+            url_pattern = r'"baseUrl":"(.*?)"'
+            url_match = re.search(url_pattern, caption_data)
+            
+            if not url_match:
+                print(f"✗ No caption URL found")
+                return None
+            
+            # Decode the URL (it's escaped)
+            caption_url = url_match.group(1).replace('\\u0026', '&')
+            
+            # Fetch the actual transcript
+            caption_response = requests.get(caption_url, timeout=10)
+            caption_text = caption_response.text
+            
+            # Extract text from XML
+            text_pattern = r'<text.*?>(.*?)</text>'
+            texts = re.findall(text_pattern, caption_text)
+            
+            if not texts:
+                print(f"✗ No text found in captions")
+                return None
+            
+            # Clean and join
+            full_text = ' '.join(texts)
+            full_text = re.sub(r'<[^>]+>', '', full_text)  # Remove any remaining tags
+            full_text = full_text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
             full_text = full_text.replace('\n', ' ').replace('  ', ' ').strip()
             
             # Limit to 4000 words
@@ -178,8 +214,11 @@ class TranscriptFetcher:
             print(f"✓ Extracted transcript: {len(words)} words")
             return limited_text
             
+        except requests.Timeout:
+            print(f"✗ Timeout fetching transcript")
+            return None
         except Exception as e:
-            print(f"✗ No transcript available: {str(e)[:50]}")
+            print(f"✗ Error fetching transcript: {str(e)[:100]}")
             return None
 
 # ============================================
@@ -412,7 +451,7 @@ class PodcastStreamApp:
             try:
                 print(f"Processing {i + 1}/{batch_count}: {video['title'][:60]}...")
                 
-                # Fetch transcript
+                # Fetch transcript with improved method
                 transcript = self.transcript_fetcher.get_transcript(video['id'])
                 has_transcript = transcript is not None and len(transcript) > 50
                 
@@ -440,7 +479,7 @@ class PodcastStreamApp:
                 )
                 
                 processed += 1
-                time.sleep(2)  # Rate limiting
+                time.sleep(3)  # Longer delay to avoid rate limiting
                 
             except Exception as e:
                 print(f"Error processing video: {e}")
