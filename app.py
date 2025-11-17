@@ -1,13 +1,14 @@
 """
-NBA Podcast Stream - Fixed Transcript Version
-Uses web scraping for reliable transcript extraction
+NBA Podcast Stream - Final Version
+Fetches transcripts when available, skips summaries for videos without transcripts
 """
 
 import os
 import json
 import time
-import re
 from datetime import datetime, timedelta
+from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 import anthropic
@@ -151,75 +152,82 @@ class YouTubeClient:
         return videos
 
 # ============================================
-# IMPROVED TRANSCRIPT FETCHER
+# TRANSCRIPT FETCHER
 # ============================================
 
 class TranscriptFetcher:
     @staticmethod
     def get_transcript(video_id):
-        """Fetch transcript using web scraping method"""
+        """Fetch transcript for a YouTube video - try multiple methods"""
+        
+        # Method 1: Try to get manually created English transcript
         try:
-            # Get video page HTML
-            url = f'https://www.youtube.com/watch?v={video_id}'
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
+            transcript_list = YouTubeTranscriptApi.get_transcript(
+                video_id,
+                languages=['en', 'en-US', 'en-GB']
+            )
             
-            response = requests.get(url, headers=headers, timeout=10)
-            html = response.text
-            
-            # Look for captions/transcript data in the page
-            # YouTube embeds this in ytInitialPlayerResponse
-            pattern = r'"captions".*?"captionTracks":\[(.*?)\]'
-            match = re.search(pattern, html)
-            
-            if not match:
-                print(f"✗ No captions found in page data")
-                return None
-            
-            # Extract the first caption track URL
-            caption_data = match.group(1)
-            url_pattern = r'"baseUrl":"(.*?)"'
-            url_match = re.search(url_pattern, caption_data)
-            
-            if not url_match:
-                print(f"✗ No caption URL found")
-                return None
-            
-            # Decode the URL (it's escaped)
-            caption_url = url_match.group(1).replace('\\u0026', '&')
-            
-            # Fetch the actual transcript
-            caption_response = requests.get(caption_url, timeout=10)
-            caption_text = caption_response.text
-            
-            # Extract text from XML
-            text_pattern = r'<text.*?>(.*?)</text>'
-            texts = re.findall(text_pattern, caption_text)
-            
-            if not texts:
-                print(f"✗ No text found in captions")
-                return None
-            
-            # Clean and join
-            full_text = ' '.join(texts)
-            full_text = re.sub(r'<[^>]+>', '', full_text)  # Remove any remaining tags
-            full_text = full_text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+            full_text = ' '.join([entry['text'] for entry in transcript_list])
             full_text = full_text.replace('\n', ' ').replace('  ', ' ').strip()
             
-            # Limit to 4000 words
             words = full_text.split()
             limited_text = ' '.join(words[:4000])
             
-            print(f"✓ Extracted transcript: {len(words)} words")
+            print(f"✓ Extracted manual transcript: {len(words)} words")
             return limited_text
             
-        except requests.Timeout:
-            print(f"✗ Timeout fetching transcript")
-            return None
+        except (TranscriptsDisabled, NoTranscriptFound):
+            pass
         except Exception as e:
-            print(f"✗ Error fetching transcript: {str(e)[:100]}")
-            return None
+            print(f"Manual transcript attempt failed: {str(e)[:50]}")
+        
+        # Method 2: Try to get auto-generated transcript
+        try:
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            
+            # Look for auto-generated English transcript
+            try:
+                transcript = transcript_list.find_generated_transcript(['en', 'en-US', 'en-GB'])
+                entries = transcript.fetch()
+                
+                full_text = ' '.join([entry['text'] for entry in entries])
+                full_text = full_text.replace('\n', ' ').replace('  ', ' ').strip()
+                
+                words = full_text.split()
+                limited_text = ' '.join(words[:4000])
+                
+                print(f"✓ Extracted auto-generated transcript: {len(words)} words")
+                return limited_text
+                
+            except:
+                pass
+            
+        except Exception as e:
+            print(f"Auto-generated transcript attempt failed: {str(e)[:50]}")
+        
+        # Method 3: Try any available transcript
+        try:
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            
+            for transcript in transcript_list:
+                try:
+                    entries = transcript.fetch()
+                    full_text = ' '.join([entry['text'] for entry in entries])
+                    full_text = full_text.replace('\n', ' ').replace('  ', ' ').strip()
+                    
+                    words = full_text.split()
+                    limited_text = ' '.join(words[:4000])
+                    
+                    print(f"✓ Extracted transcript ({transcript.language_code}): {len(words)} words")
+                    return limited_text
+                except:
+                    continue
+                    
+        except Exception as e:
+            print(f"All transcript methods failed: {str(e)[:50]}")
+        
+        print(f"✗ No transcript available")
+        return None
 
 # ============================================
 # AI SUMMARY GENERATOR
@@ -229,12 +237,15 @@ class SummaryGenerator:
     def __init__(self):
         self.client = anthropic.Anthropic(api_key=Config.ANTHROPIC_API_KEY)
     
-    def generate_summary(self, title, description, transcript):
-        """Generate conversational summary using Claude"""
+    def generate_summary(self, title, transcript):
+        """Generate conversational summary using Claude - ONLY if transcript exists"""
         
-        if transcript and len(transcript) > 100:
-            # Transcript-based summary
-            prompt = f"""You're writing a summary for HoopsHype readers - basketball fans who want real insights, not fluff. Based on the transcript below, write a 3-4 sentence summary that captures what was actually discussed.
+        if not transcript or len(transcript) < 100:
+            # No transcript = no summary
+            return ""
+        
+        # Generate transcript-based summary
+        prompt = f"""You're writing a summary for HoopsHype readers - basketball fans who want real insights, not fluff. Based on the transcript below, write a 3-4 sentence summary that captures what was actually discussed.
 
 Write in a conversational but informative tone - think sports blog, not academic paper. Use natural language:
 - "Gil breaks down..." not "Arenas provides an analysis of..."
@@ -253,21 +264,11 @@ Transcript excerpt:
 {transcript[:3500]}
 
 Write a natural, conversational summary that sounds like a person wrote it, not a robot."""
-            max_tokens = 300
-        else:
-            # Fallback for no transcript
-            prompt = f"""You're writing for HoopsHype. Based on the title and description, write a quick 2-3 sentence preview of what this episode is probably about. Keep it casual and conversational.
-
-Title: {title}
-Description: {description}
-
-Write a natural preview - no corporate speak, just tell readers what to expect."""
-            max_tokens = 150
         
         try:
             message = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=max_tokens,
+                max_tokens=300,
                 messages=[{
                     "role": "user",
                     "content": prompt
@@ -278,7 +279,7 @@ Write a natural preview - no corporate speak, just tell readers what to expect."
             
         except Exception as e:
             print(f"AI summary error: {e}")
-            return "In-depth analysis coming soon..."
+            return ""
 
 # ============================================
 # MAIN APPLICATION
@@ -451,16 +452,18 @@ class PodcastStreamApp:
             try:
                 print(f"Processing {i + 1}/{batch_count}: {video['title'][:60]}...")
                 
-                # Fetch transcript with improved method
+                # Fetch transcript
                 transcript = self.transcript_fetcher.get_transcript(video['id'])
                 has_transcript = transcript is not None and len(transcript) > 50
                 
-                # Generate summary
-                summary = self.summary_generator.generate_summary(
-                    video['title'],
-                    video['description'],
-                    transcript
-                )
+                # Generate summary ONLY if we have a transcript
+                if has_transcript:
+                    summary = self.summary_generator.generate_summary(
+                        video['title'],
+                        transcript
+                    )
+                else:
+                    summary = ""  # No transcript = no summary
                 
                 # Add to sheet
                 self.sheets.append_rows(
@@ -479,7 +482,7 @@ class PodcastStreamApp:
                 )
                 
                 processed += 1
-                time.sleep(3)  # Longer delay to avoid rate limiting
+                time.sleep(2)  # Rate limiting
                 
             except Exception as e:
                 print(f"Error processing video: {e}")
