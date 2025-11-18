@@ -1,6 +1,6 @@
 """
-NBA Podcast Stream - Final Version
-Fetches transcripts when available, skips summaries for videos without transcripts
+NBA Podcast Stream - Enhanced Version with Statistics
+Fetches video views, channel subscribers, and more metadata
 """
 
 import os
@@ -103,53 +103,91 @@ class SheetsClient:
 class YouTubeClient:
     def __init__(self):
         self.api_key = Config.YOUTUBE_API_KEY
-        self.base_url = 'https://www.googleapis.com/youtube/v3'
+        self.youtube = build('youtube', 'v3', developerKey=self.api_key)
     
     def search_channel(self, handle):
         """Search for a channel by handle"""
-        url = f'{self.base_url}/search'
-        params = {
-            'part': 'snippet',
-            'type': 'channel',
-            'q': handle,
-            'key': self.api_key
-        }
-        
-        response = requests.get(url, params=params)
-        data = response.json()
-        
-        if 'items' in data and len(data['items']) > 0:
-            return data['items'][0]['snippet']['channelId']
+        try:
+            request = self.youtube.search().list(
+                part='snippet',
+                type='channel',
+                q=handle,
+                maxResults=1
+            )
+            response = request.execute()
+            
+            if 'items' in response and len(response['items']) > 0:
+                return response['items'][0]['snippet']['channelId']
+        except Exception as e:
+            print(f"Error searching channel: {e}")
         return None
     
+    def get_channel_info(self, channel_id):
+        """Get channel statistics"""
+        try:
+            request = self.youtube.channels().list(
+                part='statistics,snippet',
+                id=channel_id
+            )
+            response = request.execute()
+            
+            if 'items' in response and len(response['items']) > 0:
+                item = response['items'][0]
+                return {
+                    'subscriber_count': item['statistics'].get('subscriberCount', 'Hidden'),
+                    'total_views': item['statistics'].get('viewCount', '0'),
+                    'video_count': item['statistics'].get('videoCount', '0')
+                }
+        except Exception as e:
+            print(f"Error getting channel info: {e}")
+        return {'subscriber_count': 'N/A', 'total_views': '0', 'video_count': '0'}
+    
     def get_channel_videos(self, channel_id, max_results=3):
-        """Get latest videos from a channel"""
-        url = f'{self.base_url}/search'
-        params = {
-            'part': 'snippet',
-            'channelId': channel_id,
-            'order': 'date',
-            'type': 'video',
-            'maxResults': max_results,
-            'key': self.api_key
-        }
-        
-        response = requests.get(url, params=params)
-        data = response.json()
-        
-        videos = []
-        if 'items' in data:
-            for item in data['items']:
+        """Get latest videos from a channel with statistics"""
+        try:
+            # Get video IDs
+            search_request = self.youtube.search().list(
+                part='snippet',
+                channelId=channel_id,
+                order='date',
+                type='video',
+                maxResults=max_results
+            )
+            search_response = search_request.execute()
+            
+            if 'items' not in search_response:
+                return []
+            
+            # Get video IDs
+            video_ids = [item['id']['videoId'] for item in search_response['items']]
+            
+            # Get video statistics
+            stats_request = self.youtube.videos().list(
+                part='statistics,snippet',
+                id=','.join(video_ids)
+            )
+            stats_response = stats_request.execute()
+            
+            videos = []
+            for item in stats_response['items']:
                 videos.append({
-                    'id': item['id']['videoId'],
+                    'id': item['id'],
                     'title': item['snippet']['title'],
                     'channel_name': item['snippet']['channelTitle'],
+                    'channel_id': item['snippet']['channelId'],
                     'published_at': item['snippet']['publishedAt'],
                     'thumbnail': item['snippet']['thumbnails']['high']['url'],
-                    'description': item['snippet']['description']
+                    'description': item['snippet']['description'],
+                    'view_count': item['statistics'].get('viewCount', '0'),
+                    'like_count': item['statistics'].get('likeCount', '0'),
+                    'comment_count': item['statistics'].get('commentCount', '0')
                 })
-        
-        return videos
+            
+            return videos
+            
+        except Exception as e:
+            print(f"Error getting channel videos: {e}")
+            return []
 
 # ============================================
 # TRANSCRIPT FETCHER
@@ -185,7 +223,6 @@ class TranscriptFetcher:
         try:
             transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
             
-            # Look for auto-generated English transcript
             try:
                 transcript = transcript_list.find_generated_transcript(['en', 'en-US', 'en-GB'])
                 entries = transcript.fetch()
@@ -241,10 +278,8 @@ class SummaryGenerator:
         """Generate conversational summary using Claude - ONLY if transcript exists"""
         
         if not transcript or len(transcript) < 100:
-            # No transcript = no summary
             return ""
         
-        # Generate transcript-based summary
         prompt = f"""You're writing a summary for HoopsHype readers - basketball fans who want real insights, not fluff. Based on the transcript below, write a 3-4 sentence summary that captures what was actually discussed.
 
 Write in a conversational but informative tone - think sports blog, not academic paper. Use natural language:
@@ -292,16 +327,16 @@ class PodcastStreamApp:
         self.transcript_fetcher = TranscriptFetcher()
         self.summary_generator = SummaryGenerator()
         
-        # Initialize sheets
+        # Initialize sheets with enhanced headers
         self.sheets.create_sheet_if_not_exists(
             Config.VIDEOS_SHEET,
-            ['Video ID', 'Title', 'Channel Name', 'Published Date', 
-             'Thumbnail URL', 'Description', 'Transcript Available', 
-             'AI Summary', 'Last Updated']
+            ['Video ID', 'Title', 'Channel Name', 'Channel ID', 'Published Date', 
+             'Thumbnail URL', 'Description', 'View Count', 'Subscriber Count',
+             'Transcript Available', 'AI Summary', 'Last Updated']
         )
         self.sheets.create_sheet_if_not_exists(
             Config.CHANNEL_CACHE_SHEET,
-            ['Channel Handle', 'Channel ID']
+            ['Channel Handle', 'Channel ID', 'Subscriber Count']
         )
     
     def get_channel_urls(self):
@@ -315,20 +350,20 @@ class PodcastStreamApp:
     def get_cached_channels(self):
         """Get cached channel IDs"""
         try:
-            values = self.sheets.read_range(f'{Config.CHANNEL_CACHE_SHEET}!A2:B')
+            values = self.sheets.read_range(f'{Config.CHANNEL_CACHE_SHEET}!A2:C')
             cache = {}
             for row in values:
                 if len(row) >= 2:
-                    cache[row[0]] = row[1]
+                    cache[row[0]] = {'id': row[1], 'subscribers': row[2] if len(row) > 2 else 'N/A'}
             return cache
         except:
             return {}
     
-    def cache_channel(self, handle, channel_id):
-        """Cache a channel ID"""
+    def cache_channel(self, handle, channel_id, subscriber_count):
+        """Cache a channel ID with subscriber count"""
         self.sheets.append_rows(
-            f'{Config.CHANNEL_CACHE_SHEET}!A:B',
-            [[handle, channel_id]]
+            f'{Config.CHANNEL_CACHE_SHEET}!A:C',
+            [[handle, channel_id, subscriber_count]]
         )
     
     def get_existing_video_ids(self):
@@ -343,12 +378,10 @@ class PodcastStreamApp:
         """Extract channel handle from URL"""
         import re
         
-        # Try @username format
         match = re.search(r'@([^/]+)', url)
         if match:
             return match.group(1)
         
-        # Try /channel/ format
         match = re.search(r'channel/([^/]+)', url)
         if match:
             return match.group(1)
@@ -358,7 +391,7 @@ class PodcastStreamApp:
     def resolve_channel_ids(self, channel_urls):
         """Resolve channel URLs to IDs"""
         cached = self.get_cached_channels()
-        channel_ids = []
+        channel_data = []
         
         for url in channel_urls:
             handle = self.extract_channel_handle(url)
@@ -366,22 +399,25 @@ class PodcastStreamApp:
                 continue
             
             if handle in cached:
-                channel_ids.append(cached[handle])
+                channel_data.append(cached[handle])
                 print(f"Using cached ID for {handle}")
             else:
-                # Resolve via API
                 if handle.startswith('UC'):
                     channel_id = handle
                 else:
                     channel_id = self.youtube.search_channel(handle)
                 
                 if channel_id:
-                    channel_ids.append(channel_id)
-                    self.cache_channel(handle, channel_id)
-                    print(f"Resolved {handle} -> {channel_id}")
+                    # Get channel stats
+                    channel_info = self.youtube.get_channel_info(channel_id)
+                    subscriber_count = channel_info['subscriber_count']
+                    
+                    channel_data.append({'id': channel_id, 'subscribers': subscriber_count})
+                    self.cache_channel(handle, channel_id, subscriber_count)
+                    print(f"Resolved {handle} -> {channel_id} ({subscriber_count} subs)")
                     time.sleep(0.2)
         
-        return channel_ids
+        return channel_data
     
     def run(self):
         """Main update function"""
@@ -389,15 +425,12 @@ class PodcastStreamApp:
         print(f"NBA Podcast Stream Update - {datetime.now()}")
         print(f"{'='*60}\n")
         
-        # Get all channel URLs
         all_channel_urls = self.get_channel_urls()
         print(f"Total channels: {len(all_channel_urls)}")
         
-        # Determine which group to process
         current_hour = datetime.now().hour
         group_index = (current_hour // 6) % Config.CHANNEL_GROUPS
         
-        # Split into groups
         channels_per_group = len(all_channel_urls) // Config.CHANNEL_GROUPS
         start_idx = group_index * channels_per_group
         end_idx = start_idx + channels_per_group if group_index < Config.CHANNEL_GROUPS - 1 else len(all_channel_urls)
@@ -405,26 +438,24 @@ class PodcastStreamApp:
         
         print(f"Processing group {group_index + 1}/{Config.CHANNEL_GROUPS}: channels {start_idx + 1}-{end_idx}")
         
-        # Resolve channel IDs
-        channel_ids = self.resolve_channel_ids(channel_urls)
-        print(f"Resolved {len(channel_ids)} channel IDs\n")
+        channel_data = self.resolve_channel_ids(channel_urls)
+        print(f"Resolved {len(channel_data)} channel IDs\n")
         
-        # Fetch videos
         all_videos = []
         cutoff_date = datetime.now() - timedelta(days=Config.VIDEO_CACHE_DAYS)
         
-        for i, channel_id in enumerate(channel_ids):
-            print(f"Fetching videos from channel {i + 1}/{len(channel_ids)}")
+        for i, data in enumerate(channel_data):
+            print(f"Fetching videos from channel {i + 1}/{len(channel_data)}")
             try:
                 videos = self.youtube.get_channel_videos(
-                    channel_id,
+                    data['id'],
                     Config.MAX_VIDEOS_PER_CHANNEL
                 )
                 
-                # Filter by date
                 for video in videos:
                     pub_date = datetime.fromisoformat(video['published_at'].replace('Z', '+00:00'))
                     if pub_date.replace(tzinfo=None) >= cutoff_date:
+                        video['subscriber_count'] = data['subscribers']
                         all_videos.append(video)
                 
                 time.sleep(0.3)
@@ -433,16 +464,13 @@ class PodcastStreamApp:
         
         print(f"\nFetched {len(all_videos)} total videos")
         
-        # Sort by date (newest first)
         all_videos.sort(key=lambda v: v['published_at'], reverse=True)
         
-        # Filter for new videos
         existing_ids = self.get_existing_video_ids()
         new_videos = [v for v in all_videos if v['id'] not in existing_ids]
         
         print(f"Found {len(new_videos)} new videos to process\n")
         
-        # Process new videos
         processed = 0
         batch_count = min(Config.BATCH_SIZE, len(new_videos))
         
@@ -452,29 +480,29 @@ class PodcastStreamApp:
             try:
                 print(f"Processing {i + 1}/{batch_count}: {video['title'][:60]}...")
                 
-                # Fetch transcript
                 transcript = self.transcript_fetcher.get_transcript(video['id'])
                 has_transcript = transcript is not None and len(transcript) > 50
                 
-                # Generate summary ONLY if we have a transcript
                 if has_transcript:
                     summary = self.summary_generator.generate_summary(
                         video['title'],
                         transcript
                     )
                 else:
-                    summary = ""  # No transcript = no summary
+                    summary = ""
                 
-                # Add to sheet
                 self.sheets.append_rows(
-                    f'{Config.VIDEOS_SHEET}!A:I',
+                    f'{Config.VIDEOS_SHEET}!A:L',
                     [[
                         video['id'],
                         video['title'],
                         video['channel_name'],
+                        video['channel_id'],
                         video['published_at'],
                         video['thumbnail'],
                         video['description'],
+                        video['view_count'],
+                        video['subscriber_count'],
                         'Yes' if has_transcript else 'No',
                         summary,
                         datetime.now().isoformat()
@@ -482,7 +510,7 @@ class PodcastStreamApp:
                 )
                 
                 processed += 1
-                time.sleep(2)  # Rate limiting
+                time.sleep(2)
                 
             except Exception as e:
                 print(f"Error processing video: {e}")
@@ -493,7 +521,7 @@ class PodcastStreamApp:
         return {
             'success': True,
             'group_processed': group_index + 1,
-            'channels_in_group': len(channel_ids),
+            'channels_in_group': len(channel_data),
             'videos_found': len(all_videos),
             'new_videos_processed': processed
         }
