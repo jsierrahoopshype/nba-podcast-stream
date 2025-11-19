@@ -91,6 +91,7 @@
             justify-content: center;
             cursor: pointer;
             transition: all 0.3s;
+            z-index: 10;
         }
 
         .play-button:hover {
@@ -115,6 +116,7 @@
             width: 100%;
             height: 100%;
             display: none;
+            z-index: 20;
         }
 
         .video-content {
@@ -124,30 +126,65 @@
         .video-title {
             font-size: 18px;
             font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 10px;
             line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .video-title a {
+            color: #2c3e50;
+            text-decoration: none;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
 
+        .video-title a:hover {
+            color: #e74c3c;
+        }
+
         .video-meta {
             display: flex;
-            gap: 15px;
+            flex-wrap: wrap;
+            gap: 12px;
             margin-bottom: 12px;
             font-size: 13px;
             color: #7f8c8d;
+            align-items: center;
         }
 
-        .channel-name {
+        .channel-name a {
             font-weight: 500;
             color: #e74c3c;
+            text-decoration: none;
+        }
+
+        .channel-name a:hover {
+            text-decoration: underline;
         }
 
         .video-date {
             color: #95a5a6;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        .stat-item svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
         }
 
         .transcript-badge {
@@ -221,16 +258,29 @@
     </div>
 
     <script>
-        // CONFIGURATION - Using your published CSV
+        // CONFIGURATION
         const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRr8GiFRfKLquD0j49JqKIL11tnulG7--WeJsvP3nqFc72EeQM3RsQjnWeXlgcVoR2RL5y7oqYbfpSs/pub?gid=16432109&single=true&output=csv';
         const MAX_VIDEOS = 30;
+
+        // Function to format large numbers
+        function formatNumber(num) {
+            const number = parseInt(num);
+            if (isNaN(number)) return num;
+            
+            if (number >= 1000000) {
+                return (number / 1000000).toFixed(1) + 'M';
+            } else if (number >= 1000) {
+                return (number / 1000).toFixed(1) + 'K';
+            }
+            return number.toLocaleString();
+        }
 
         // Function to parse CSV
         function parseCSV(text) {
             const lines = text.split('\n');
             const result = [];
             
-            for (let i = 1; i < lines.length; i++) { // Skip header
+            for (let i = 1; i < lines.length; i++) {
                 if (!lines[i].trim()) continue;
                 
                 const values = [];
@@ -249,7 +299,7 @@
                 }
                 values.push(current.trim().replace(/^"|"$/g, ''));
                 
-                if (values[0]) { // Has video ID
+                if (values[0]) {
                     result.push(values);
                 }
             }
@@ -276,8 +326,12 @@
         }
 
         // Function to play video
-        function playVideo(videoId, cardElement) {
-            const thumbnail = cardElement.querySelector('.video-thumbnail');
+        function playVideo(videoId, event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const card = event.target.closest('.video-card');
+            const thumbnail = card.querySelector('.video-thumbnail');
             const iframe = document.createElement('iframe');
             iframe.className = 'video-iframe';
             iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
@@ -298,26 +352,54 @@
             const hasTranscript = video.transcriptAvailable === 'Yes';
             const hasSummary = video.summary && video.summary.trim().length > 0;
 
-            // Escape HTML in title and summary
             const escapeHtml = (text) => {
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
             };
 
+            // Video and channel URLs
+            const videoUrl = `https://www.youtube.com/watch?v=${video.id}`;
+            const channelUrl = `https://www.youtube.com/channel/${video.channelId}`;
+
+            // Stats
+            const viewCount = formatNumber(video.viewCount);
+            const subscriberCount = video.subscriberCount === 'Hidden' || video.subscriberCount === 'N/A' 
+                ? video.subscriberCount 
+                : formatNumber(video.subscriberCount);
+
             card.innerHTML = `
-                <div class="video-thumbnail" onclick="playVideo('${video.id}', this.parentElement)">
+                <div class="video-thumbnail" onclick="playVideo('${video.id}', event)">
                     <img src="${video.thumbnail}" alt="${escapeHtml(video.title)}">
                     <div class="play-button"></div>
                 </div>
                 <div class="video-content">
-                    <h3 class="video-title">${escapeHtml(video.title)}</h3>
+                    <h3 class="video-title">
+                        <a href="${videoUrl}" target="_blank" rel="noopener">${escapeHtml(video.title)}</a>
+                    </h3>
                     <div class="video-meta">
-                        <span class="channel-name">${escapeHtml(video.channelName)}</span>
+                        <span class="channel-name">
+                            <a href="${channelUrl}" target="_blank" rel="noopener">${escapeHtml(video.channelName)}</a>
+                        </span>
                         <span class="video-date">${formatDate(video.publishedDate)}</span>
                     </div>
+                    <div class="stats-row">
+                        <div class="stat-item" title="Views">
+                            <svg fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                            </svg>
+                            ${viewCount} views
+                        </div>
+                        <div class="stat-item" title="Channel Subscribers">
+                            <svg fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                            </svg>
+                            ${subscriberCount} subs
+                        </div>
+                    </div>
                     ${hasTranscript ? 
-                        '<span class="transcript-badge transcript-yes">Transcript Available</span>' : 
+                        '<span class="transcript-badge transcript-yes">Full Transcript</span>' : 
                         '<span class="transcript-badge transcript-no">No Transcript</span>'
                     }
                     ${hasSummary ? 
@@ -349,17 +431,20 @@
                     return;
                 }
 
-                // Parse data
+                // Parse data (updated column indices for new format)
                 const videos = rows.slice(0, MAX_VIDEOS).map(row => ({
                     id: row[0],
                     title: row[1],
                     channelName: row[2],
-                    publishedDate: row[3],
-                    thumbnail: row[4],
-                    description: row[5] || '',
-                    transcriptAvailable: row[6] || 'No',
-                    summary: row[7] || '',
-                    lastUpdated: row[8]
+                    channelId: row[3],
+                    publishedDate: row[4],
+                    thumbnail: row[5],
+                    description: row[6] || '',
+                    viewCount: row[7] || '0',
+                    subscriberCount: row[8] || 'N/A',
+                    transcriptAvailable: row[9] || 'No',
+                    summary: row[10] || '',
+                    lastUpdated: row[11]
                 })).filter(video => video.id);
 
                 // Sort by published date (newest first)
