@@ -257,6 +257,7 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script>
         // CONFIGURATION
         const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRr8GiFRfKLquD0j49JqKIL11tnulG7--WeJsvP3nqFc72EeQM3RsQjnWeXlgcVoR2RL5y7oqYbfpSs/pub?gid=162816128&single=true&output=csv';
@@ -275,53 +276,25 @@
             return number.toLocaleString();
         }
 
-        // Function to parse CSV
-        function parseCSV(text) {
-            const lines = text.split('\n');
-            const result = [];
-            
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue;
-                
-                const values = [];
-                let current = '';
-                let inQuotes = false;
-                
-                for (let char of lines[i]) {
-                    if (char === '"') {
-                        inQuotes = !inQuotes;
-                    } else if (char === ',' && !inQuotes) {
-                        values.push(current.trim().replace(/^"|"$/g, ''));
-                        current = '';
-                    } else {
-                        current += char;
-                    }
-                }
-                values.push(current.trim().replace(/^"|"$/g, ''));
-                
-                if (values[0]) {
-                    result.push(values);
-                }
-            }
-            
-            return result;
-        }
-
         // Function to format date
         function formatDate(dateString) {
             try {
                 const date = new Date(dateString);
+                if (isNaN(date.getTime())) {
+                    return 'Recently';
+                }
+                
                 const now = new Date();
                 const diffTime = Math.abs(now - date);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                if (diffDays === 0) return 'Today';
-                if (diffDays === 1) return 'Yesterday';
-                if (diffDays < 7) return `${diffDays} days ago`;
+                if (diffDays === 0 || diffDays === 1) return 'Today';
+                if (diffDays === 2) return 'Yesterday';
+                if (diffDays < 7) return `${diffDays - 1} days ago`;
                 if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
                 return date.toLocaleDateString();
             } catch (e) {
-                return dateString;
+                return 'Recently';
             }
         }
 
@@ -370,7 +343,7 @@
 
             card.innerHTML = `
                 <div class="video-thumbnail" onclick="playVideo('${video.id}', event)">
-                    <img src="${video.thumbnail}" alt="${escapeHtml(video.title)}">
+                    <img src="${video.thumbnail}" alt="${escapeHtml(video.title)}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22480%22 height=%22360%22%3E%3Crect fill=%22%23000%22 width=%22480%22 height=%22360%22/%3E%3C/svg%3E'">
                     <div class="play-button"></div>
                 </div>
                 <div class="video-content">
@@ -424,31 +397,40 @@
                 }
 
                 const csvText = await response.text();
-                const rows = parseCSV(csvText);
+                
+                // Use PapaParse to properly parse CSV
+                const parsed = Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true
+                });
 
-                if (!rows || rows.length === 0) {
+                if (!parsed.data || parsed.data.length === 0) {
                     gridElement.innerHTML = '<div class="no-videos">No videos available yet. Check back soon!</div>';
                     return;
                 }
 
-                // Parse data (updated column indices for new format)
-                const videos = rows.slice(0, MAX_VIDEOS).map(row => ({
-                    id: row[0],
-                    title: row[1],
-                    channelName: row[2],
-                    channelId: row[3],
-                    publishedDate: row[4],
-                    thumbnail: row[5],
-                    description: row[6] || '',
-                    viewCount: row[7] || '0',
-                    subscriberCount: row[8] || 'N/A',
-                    transcriptAvailable: row[9] || 'No',
-                    summary: row[10] || '',
-                    lastUpdated: row[11]
+                // Map parsed data to video objects
+                const videos = parsed.data.slice(0, MAX_VIDEOS).map(row => ({
+                    id: row['Video ID'],
+                    title: row['Title'],
+                    channelName: row['Channel Name'],
+                    channelId: row['Channel ID'],
+                    publishedDate: row['Published Date'],
+                    thumbnail: row['Thumbnail URL'],
+                    description: row['Description'] || '',
+                    viewCount: row['View Count'] || '0',
+                    subscriberCount: row['Subscriber Count'] || 'N/A',
+                    transcriptAvailable: row['Transcript Available'] || 'No',
+                    summary: row['AI Summary'] || '',
+                    lastUpdated: row['Last Updated']
                 })).filter(video => video.id);
 
                 // Sort by published date (newest first)
-                videos.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+                videos.sort((a, b) => {
+                    const dateA = new Date(a.publishedDate);
+                    const dateB = new Date(b.publishedDate);
+                    return dateB - dateA;
+                });
 
                 // Clear loading message
                 gridElement.innerHTML = '';
