@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
@@ -31,7 +31,7 @@
         }
 
         .header h1 {
-            font-size: 32px;
+            font-size: 36px;
             color: #2c3e50;
             margin-bottom: 10px;
         }
@@ -41,11 +41,123 @@
             font-size: 16px;
         }
 
+        .stats-banner {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 15px 25px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-box .number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        .stat-box .label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .search-bar {
+            width: 100%;
+            padding: 12px 20px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+
+        .search-bar:focus {
+            outline: none;
+            border-color: #e74c3c;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .filter-btn, .sort-btn {
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .filter-btn:hover, .sort-btn:hover {
+            border-color: #e74c3c;
+            color: #e74c3c;
+        }
+
+        .filter-btn.active {
+            background: #e74c3c;
+            color: white;
+            border-color: #e74c3c;
+        }
+
+        .sort-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .sort-label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .playlist-toggle {
+            margin-left: auto;
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .playlist-toggle:hover {
+            background: #2980b9;
+        }
+
+        .playlist-toggle.active {
+            background: #27ae60;
+        }
+
         .video-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 25px;
-            margin-top: 30px;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
         }
 
         .video-card {
@@ -54,11 +166,42 @@
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
         }
 
         .video-card:hover {
             transform: translateY(-4px);
             box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+
+        .new-badge, .trending-badge, .episode-badge {
+            position: absolute;
+            top: 10px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            z-index: 15;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .new-badge {
+            right: 10px;
+            background: #e74c3c;
+            color: white;
+        }
+
+        .trending-badge {
+            left: 10px;
+            background: #f39c12;
+            color: white;
+        }
+
+        .episode-badge {
+            right: 10px;
+            top: 45px;
+            background: #9b59b6;
+            color: white;
         }
 
         .video-thumbnail {
@@ -167,6 +310,16 @@
             color: #95a5a6;
         }
 
+        .stats-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
         .stat-item {
             display: flex;
             align-items: center;
@@ -180,11 +333,19 @@
             height: 14px;
         }
 
-        .stats-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
+        .video-description {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #666;
+            margin-top: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            border-left: 3px solid #e74c3c;
+            padding: 10px 10px 10px 12px;
+            background: #f8f9fa;
+            border-radius: 4px;
         }
 
         .transcript-badge {
@@ -212,9 +373,40 @@
             line-height: 1.6;
             color: #555;
             margin-top: 12px;
+            padding: 12px;
+            background: #e8f4f8;
+            border-radius: 6px;
+            border-left: 4px solid #3498db;
         }
 
-        .loading {
+        .summary-label {
+            font-weight: 600;
+            color: #2980b9;
+            margin-bottom: 6px;
+        }
+
+        .load-more {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .load-more-btn {
+            padding: 12px 30px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .load-more-btn:hover {
+            background: #c0392b;
+        }
+
+        .loading, .error, .no-videos {
             text-align: center;
             padding: 60px 20px;
             color: #7f8c8d;
@@ -222,16 +414,7 @@
         }
 
         .error {
-            text-align: center;
-            padding: 60px 20px;
             color: #e74c3c;
-            font-size: 16px;
-        }
-
-        .no-videos {
-            text-align: center;
-            padding: 60px 20px;
-            color: #7f8c8d;
         }
 
         @media (max-width: 768px) {
@@ -241,6 +424,16 @@
 
             .header h1 {
                 font-size: 24px;
+            }
+
+            .controls {
+                padding: 15px;
+            }
+
+            .playlist-toggle {
+                margin-left: 0;
+                margin-top: 10px;
+                width: 100%;
             }
         }
     </style>
@@ -252,8 +445,38 @@
             <p>Latest episodes from top NBA podcasts</p>
         </div>
 
+        <div class="stats-banner" id="statsBanner"></div>
+
+        <div class="controls">
+            <input 
+                type="text" 
+                class="search-bar" 
+                id="searchBar" 
+                placeholder="🔍 Search by title or channel name..."
+            >
+            
+            <div class="filters">
+                <button class="filter-btn active" data-filter="all">All Episodes</button>
+                <button class="filter-btn" data-filter="summaries">With Summaries</button>
+                <button class="filter-btn" data-filter="trending">🔥 Trending</button>
+                <button class="filter-btn" data-filter="new">🆕 New Today</button>
+            </div>
+
+            <div class="sort-controls">
+                <span class="sort-label">Sort by:</span>
+                <button class="sort-btn active" data-sort="date">Latest</button>
+                <button class="sort-btn" data-sort="views">Most Viewed</button>
+                <button class="sort-btn" data-sort="channel">Channel</button>
+                <button class="playlist-toggle" id="playlistToggle">▶️ Playlist Mode: OFF</button>
+            </div>
+        </div>
+
         <div id="videoGrid" class="video-grid">
             <div class="loading">Loading latest episodes...</div>
+        </div>
+
+        <div class="load-more" id="loadMoreContainer" style="display: none;">
+            <button class="load-more-btn" id="loadMoreBtn">Load More Episodes</button>
         </div>
     </div>
 
@@ -261,34 +484,39 @@
     <script>
         // CONFIGURATION
         const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRr8GiFRfKLquD0j49JqKIL11tnulG7--WeJsvP3nqFc72EeQM3RsQjnWeXlgcVoR2RL5y7oqYbfpSs/pub?gid=162816128&single=true&output=csv';
-        const MAX_VIDEOS = 30;
+        const ITEMS_PER_PAGE = 10;
 
-        // Function to format large numbers
+        // State
+        let allVideos = [];
+        let filteredVideos = [];
+        let displayedCount = ITEMS_PER_PAGE;
+        let currentFilter = 'all';
+        let currentSort = 'date';
+        let searchQuery = '';
+        let playlistMode = false;
+        let currentVideoIndex = 0;
+
+        // Format numbers
         function formatNumber(num) {
             const number = parseInt(num);
             if (isNaN(number)) return num;
-            
-            if (number >= 1000000) {
-                return (number / 1000000).toFixed(1) + 'M';
-            } else if (number >= 1000) {
-                return (number / 1000).toFixed(1) + 'K';
-            }
+            if (number >= 1000000) return (number / 1000000).toFixed(1) + 'M';
+            if (number >= 1000) return (number / 1000).toFixed(1) + 'K';
             return number.toLocaleString();
         }
 
-        // Function to format date
+        // Format date
         function formatDate(dateString) {
             try {
                 const date = new Date(dateString);
-                if (isNaN(date.getTime())) {
-                    return 'Recently';
-                }
+                if (isNaN(date.getTime())) return 'Recently';
                 
                 const now = new Date();
                 const diffTime = Math.abs(now - date);
+                const diffHours = diffTime / (1000 * 60 * 60);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                if (diffDays === 0 || diffDays === 1) return 'Today';
+                if (diffHours < 24) return 'Today';
                 if (diffDays === 2) return 'Yesterday';
                 if (diffDays < 7) return `${diffDays - 1} days ago`;
                 if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
@@ -298,16 +526,60 @@
             }
         }
 
-        // Function to play video
-        function playVideo(videoId, event) {
+        // Check if new
+        function isNew(dateString) {
+            try {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffHours = (now - date) / (1000 * 60 * 60);
+                return diffHours < 24;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // Check if trending
+        function isTrending(viewCount) {
+            return parseInt(viewCount) > 50000;
+        }
+
+        // Extract episode number
+        function extractEpisode(title) {
+            const patterns = [
+                /ep\.?\s*#?(\d+)/i,
+                /episode\s*#?(\d+)/i,
+                /#(\d+)/,
+                /\[(\d+)\]/,
+                /\((\d+)\)/
+            ];
+            
+            for (const pattern of patterns) {
+                const match = title.match(pattern);
+                if (match) return `EP ${match[1]}`;
+            }
+            return null;
+        }
+
+        // Play video
+        function playVideo(videoId, event, videoIndex) {
             event.preventDefault();
             event.stopPropagation();
             
+            currentVideoIndex = videoIndex;
+            
             const card = event.target.closest('.video-card');
             const thumbnail = card.querySelector('.video-thumbnail');
+            
+            // Remove any existing iframes
+            const existingIframe = thumbnail.querySelector('.video-iframe');
+            if (existingIframe) existingIframe.remove();
+            
             const iframe = document.createElement('iframe');
             iframe.className = 'video-iframe';
-            iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            
+            // Add playlist parameter if enabled
+            const autoplayNext = playlistMode ? '&end=' + Date.now() : '';
+            iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1${autoplayNext}`;
             iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
             iframe.allowFullscreen = true;
             
@@ -315,15 +587,47 @@
             iframe.style.display = 'block';
             thumbnail.querySelector('img').style.display = 'none';
             thumbnail.querySelector('.play-button').style.display = 'none';
+            
+            // Listen for video end in playlist mode
+            if (playlistMode) {
+                iframe.addEventListener('load', () => {
+                    setTimeout(() => {
+                        playNextVideo();
+                    }, 3000); // Simulate video end for demo
+                });
+            }
         }
 
-        // Function to create video card
-        function createVideoCard(video) {
+        // Play next video in playlist
+        function playNextVideo() {
+            if (!playlistMode) return;
+            
+            currentVideoIndex++;
+            if (currentVideoIndex >= filteredVideos.length) {
+                currentVideoIndex = 0;
+            }
+            
+            const nextVideo = filteredVideos[currentVideoIndex];
+            const cards = document.querySelectorAll('.video-card');
+            const nextCard = cards[currentVideoIndex % displayedCount];
+            
+            if (nextCard) {
+                const playButton = nextCard.querySelector('.play-button');
+                if (playButton) {
+                    playButton.click();
+                }
+            }
+        }
+
+        // Create video card
+        function createVideoCard(video, index) {
             const card = document.createElement('div');
             card.className = 'video-card';
 
             const hasTranscript = video.transcriptAvailable === 'Yes';
             const hasSummary = video.summary && video.summary.trim().length > 0;
+            const hasDescription = video.description && video.description.trim().length > 0;
+            const episodeNum = extractEpisode(video.title);
 
             const escapeHtml = (text) => {
                 const div = document.createElement('div');
@@ -331,18 +635,33 @@
                 return div.innerHTML;
             };
 
-            // Video and channel URLs
+            const cleanDescription = (desc) => {
+                if (!desc) return '';
+                return desc
+                    .split('\n')
+                    .filter(line => !line.startsWith('#') && !line.startsWith('http'))
+                    .join(' ')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .substring(0, 200);
+            };
+
             const videoUrl = `https://www.youtube.com/watch?v=${video.id}`;
             const channelUrl = `https://www.youtube.com/channel/${video.channelId}`;
-
-            // Stats
             const viewCount = formatNumber(video.viewCount);
             const subscriberCount = video.subscriberCount === 'Hidden' || video.subscriberCount === 'N/A' 
                 ? video.subscriberCount 
                 : formatNumber(video.subscriberCount);
 
+            const newBadge = isNew(video.publishedDate) ? '<div class="new-badge">NEW</div>' : '';
+            const trendingBadge = isTrending(video.viewCount) ? '<div class="trending-badge">🔥 TRENDING</div>' : '';
+            const episodeBadge = episodeNum ? `<div class="episode-badge">${episodeNum}</div>` : '';
+
             card.innerHTML = `
-                <div class="video-thumbnail" onclick="playVideo('${video.id}', event)">
+                ${newBadge}
+                ${trendingBadge}
+                ${episodeBadge}
+                <div class="video-thumbnail" onclick="playVideo('${video.id}', event, ${index})">
                     <img src="${video.thumbnail}" alt="${escapeHtml(video.title)}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22480%22 height=%22360%22%3E%3Crect fill=%22%23000%22 width=%22480%22 height=%22360%22/%3E%3C/svg%3E'">
                     <div class="play-button"></div>
                 </div>
@@ -354,29 +673,36 @@
                         <span class="channel-name">
                             <a href="${channelUrl}" target="_blank" rel="noopener">${escapeHtml(video.channelName)}</a>
                         </span>
-                        <span class="video-date">${formatDate(video.publishedDate)}</span>
+                        <span class="video-date">📅 ${formatDate(video.publishedDate)}</span>
                     </div>
                     <div class="stats-row">
-                        <div class="stat-item" title="Views">
+                        <div class="stat-item">
                             <svg fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
                                 <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
                             </svg>
-                            ${viewCount} views
+                            <strong>${viewCount}</strong> views
                         </div>
-                        <div class="stat-item" title="Channel Subscribers">
+                        <div class="stat-item">
                             <svg fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
                             </svg>
-                            ${subscriberCount} subs
+                            <strong>${subscriberCount}</strong> subs
                         </div>
+                        ${hasTranscript ? 
+                            '<span class="transcript-badge transcript-yes">✓ Transcript</span>' : 
+                            '<span class="transcript-badge transcript-no">No Transcript</span>'
+                        }
                     </div>
-                    ${hasTranscript ? 
-                        '<span class="transcript-badge transcript-yes">Full Transcript</span>' : 
-                        '<span class="transcript-badge transcript-no">No Transcript</span>'
+                    ${hasDescription ? 
+                        `<div class="video-description">${escapeHtml(cleanDescription(video.description))}</div>` : 
+                        ''
                     }
                     ${hasSummary ? 
-                        `<div class="video-summary">${escapeHtml(video.summary)}</div>` : 
+                        `<div class="video-summary">
+                            <div class="summary-label">🤖 AI Summary:</div>
+                            ${escapeHtml(video.summary)}
+                        </div>` : 
                         ''
                     }
                 </div>
@@ -385,32 +711,128 @@
             return card;
         }
 
-        // Function to load videos from published Google Sheet
+        // Create stats banner
+        function createStatsBanner(videos) {
+            const totalViews = videos.reduce((sum, v) => sum + (parseInt(v.viewCount) || 0), 0);
+            const withTranscripts = videos.filter(v => v.transcriptAvailable === 'Yes').length;
+            const uniqueChannels = new Set(videos.map(v => v.channelId)).size;
+            
+            return `
+                <div class="stat-box">
+                    <div class="number">${videos.length}</div>
+                    <div class="label">Episodes</div>
+                </div>
+                <div class="stat-box">
+                    <div class="number">${formatNumber(totalViews)}</div>
+                    <div class="label">Total Views</div>
+                </div>
+                <div class="stat-box">
+                    <div class="number">${uniqueChannels}</div>
+                    <div class="label">Podcasts</div>
+                </div>
+                <div class="stat-box">
+                    <div class="number">${withTranscripts}</div>
+                    <div class="label">With Summaries</div>
+                </div>
+            `;
+        }
+
+        // Filter videos
+        function filterVideos() {
+            let result = allVideos;
+
+            // Apply search
+            if (searchQuery) {
+                result = result.filter(v => 
+                    v.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    v.channelName.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+            }
+
+            // Apply filter
+            switch(currentFilter) {
+                case 'summaries':
+                    result = result.filter(v => v.transcriptAvailable === 'Yes');
+                    break;
+                case 'trending':
+                    result = result.filter(v => isTrending(v.viewCount));
+                    break;
+                case 'new':
+                    result = result.filter(v => isNew(v.publishedDate));
+                    break;
+            }
+
+            // Apply sort
+            switch(currentSort) {
+                case 'views':
+                    result.sort((a, b) => parseInt(b.viewCount) - parseInt(a.viewCount));
+                    break;
+                case 'channel':
+                    result.sort((a, b) => a.channelName.localeCompare(b.channelName));
+                    break;
+                case 'date':
+                default:
+                    result.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+                    break;
+            }
+
+            filteredVideos = result;
+            displayedCount = ITEMS_PER_PAGE;
+            renderVideos();
+        }
+
+        // Render videos
+        function renderVideos() {
+            const gridElement = document.getElementById('videoGrid');
+            const loadMoreContainer = document.getElementById('loadMoreContainer');
+            
+            gridElement.innerHTML = '';
+
+            const videosToShow = filteredVideos.slice(0, displayedCount);
+
+            if (videosToShow.length === 0) {
+                gridElement.innerHTML = '<div class="no-videos">No episodes found matching your criteria.</div>';
+                loadMoreContainer.style.display = 'none';
+                return;
+            }
+
+            videosToShow.forEach((video, index) => {
+                const card = createVideoCard(video, index);
+                gridElement.appendChild(card);
+            });
+
+            // Show/hide load more button
+            if (displayedCount < filteredVideos.length) {
+                loadMoreContainer.style.display = 'block';
+            } else {
+                loadMoreContainer.style.display = 'none';
+            }
+        }
+
+        // Load videos
         async function loadVideos() {
             const gridElement = document.getElementById('videoGrid');
+            const statsElement = document.getElementById('statsBanner');
 
             try {
                 const response = await fetch(SHEET_CSV_URL);
                 
                 if (!response.ok) {
-                    throw new Error('Failed to fetch data from Google Sheets');
+                    throw new Error('Failed to fetch data');
                 }
 
                 const csvText = await response.text();
-                
-                // Use PapaParse to properly parse CSV
                 const parsed = Papa.parse(csvText, {
                     header: true,
                     skipEmptyLines: true
                 });
 
                 if (!parsed.data || parsed.data.length === 0) {
-                    gridElement.innerHTML = '<div class="no-videos">No videos available yet. Check back soon!</div>';
+                    gridElement.innerHTML = '<div class="no-videos">No videos available yet.</div>';
                     return;
                 }
 
-                // Map parsed data to video objects
-                const videos = parsed.data.slice(0, MAX_VIDEOS).map(row => ({
+                allVideos = parsed.data.map(row => ({
                     id: row['Video ID'],
                     title: row['Title'],
                     channelName: row['Channel Name'],
@@ -421,43 +843,63 @@
                     viewCount: row['View Count'] || '0',
                     subscriberCount: row['Subscriber Count'] || 'N/A',
                     transcriptAvailable: row['Transcript Available'] || 'No',
-                    summary: row['AI Summary'] || '',
-                    lastUpdated: row['Last Updated']
+                    summary: row['AI Summary'] || ''
                 })).filter(video => video.id);
 
-                // Sort by published date (newest first)
-                videos.sort((a, b) => {
-                    const dateA = new Date(a.publishedDate);
-                    const dateB = new Date(b.publishedDate);
-                    return dateB - dateA;
-                });
-
-                // Clear loading message
-                gridElement.innerHTML = '';
-
-                // Create video cards
-                videos.forEach(video => {
-                    const card = createVideoCard(video);
-                    gridElement.appendChild(card);
-                });
-
-                console.log(`✓ Loaded ${videos.length} videos`);
+                statsElement.innerHTML = createStatsBanner(allVideos);
+                filterVideos();
 
             } catch (error) {
-                console.error('Error loading videos:', error);
-                gridElement.innerHTML = `
-                    <div class="error">
-                        <p><strong>Unable to load videos</strong></p>
-                        <p>${error.message}</p>
-                    </div>
-                `;
+                console.error('Error:', error);
+                gridElement.innerHTML = `<div class="error">Unable to load videos: ${error.message}</div>`;
             }
         }
 
-        // Load videos on page load
-        document.addEventListener('DOMContentLoaded', loadVideos);
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVideos();
 
-        // Reload videos every hour
+            // Search
+            document.getElementById('searchBar').addEventListener('input', (e) => {
+                searchQuery = e.target.value;
+                filterVideos();
+            });
+
+            // Filters
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilter = btn.dataset.filter;
+                    filterVideos();
+                });
+            });
+
+            // Sort
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentSort = btn.dataset.sort;
+                    filterVideos();
+                });
+            });
+
+            // Playlist toggle
+            document.getElementById('playlistToggle').addEventListener('click', (e) => {
+                playlistMode = !playlistMode;
+                e.target.classList.toggle('active');
+                e.target.textContent = playlistMode ? '⏸️ Playlist Mode: ON' : '▶️ Playlist Mode: OFF';
+            });
+
+            // Load more
+            document.getElementById('loadMoreBtn').addEventListener('click', () => {
+                displayedCount += ITEMS_PER_PAGE;
+                renderVideos();
+            });
+        });
+
+        // Reload every hour
         setInterval(loadVideos, 60 * 60 * 1000);
     </script>
 </body>
