@@ -1,6 +1,6 @@
 """
-NBA Podcast Stream - Enhanced Version with Statistics # Updated with enhanced stats - Nov 19
-Fetches video views, channel subscribers, and more metadata
+NBA Podcast Stream - Enhanced with Video Duration
+Fetches video length, views, channel stats, and more metadata
 """
 
 import os
@@ -143,7 +143,7 @@ class YouTubeClient:
         return {'subscriber_count': 'N/A', 'total_views': '0', 'video_count': '0'}
     
     def get_channel_videos(self, channel_id, max_results=3):
-        """Get latest videos from a channel with statistics"""
+        """Get latest videos from a channel with statistics INCLUDING DURATION"""
         try:
             # Get video IDs
             search_request = self.youtube.search().list(
@@ -161,9 +161,9 @@ class YouTubeClient:
             # Get video IDs
             video_ids = [item['id']['videoId'] for item in search_response['items']]
             
-            # Get video statistics
+            # Get video statistics AND contentDetails (includes duration)
             stats_request = self.youtube.videos().list(
-                part='statistics,snippet',
+                part='statistics,snippet,contentDetails',
                 id=','.join(video_ids)
             )
             stats_response = stats_request.execute()
@@ -180,7 +180,8 @@ class YouTubeClient:
                     'description': item['snippet']['description'],
                     'view_count': item['statistics'].get('viewCount', '0'),
                     'like_count': item['statistics'].get('likeCount', '0'),
-                    'comment_count': item['statistics'].get('commentCount', '0')
+                    'comment_count': item['statistics'].get('commentCount', '0'),
+                    'duration': item['contentDetails'].get('duration', 'PT0S')  # ISO 8601 duration
                 })
             
             return videos
@@ -317,6 +318,37 @@ Write a natural, conversational summary that sounds like a person wrote it, not 
             return ""
 
 # ============================================
+# DURATION CONVERTER
+# ============================================
+
+def convert_duration(iso_duration):
+    """Convert ISO 8601 duration (PT1H2M10S) to seconds"""
+    import re
+    
+    pattern = re.compile(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?')
+    match = pattern.match(iso_duration)
+    
+    if not match:
+        return 0
+    
+    hours = int(match.group(1) or 0)
+    minutes = int(match.group(2) or 0)
+    seconds = int(match.group(3) or 0)
+    
+    return hours * 3600 + minutes * 60 + seconds
+
+def format_duration(seconds):
+    """Format seconds to readable duration (1:23:45 or 23:45)"""
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
+    
+    if hours > 0:
+        return f"{hours}:{minutes:02d}:{secs:02d}"
+    else:
+        return f"{minutes}:{secs:02d}"
+
+# ============================================
 # MAIN APPLICATION
 # ============================================
 
@@ -327,11 +359,11 @@ class PodcastStreamApp:
         self.transcript_fetcher = TranscriptFetcher()
         self.summary_generator = SummaryGenerator()
         
-        # Initialize sheets with enhanced headers
+        # Initialize sheets with enhanced headers (added Duration)
         self.sheets.create_sheet_if_not_exists(
             Config.VIDEOS_SHEET,
             ['Video ID', 'Title', 'Channel Name', 'Channel ID', 'Published Date', 
-             'Thumbnail URL', 'Description', 'View Count', 'Subscriber Count',
+             'Thumbnail URL', 'Description', 'View Count', 'Subscriber Count', 'Duration',
              'Transcript Available', 'AI Summary', 'Last Updated']
         )
         self.sheets.create_sheet_if_not_exists(
@@ -480,6 +512,10 @@ class PodcastStreamApp:
             try:
                 print(f"Processing {i + 1}/{batch_count}: {video['title'][:60]}...")
                 
+                # Convert duration
+                duration_seconds = convert_duration(video['duration'])
+                duration_formatted = format_duration(duration_seconds)
+                
                 transcript = self.transcript_fetcher.get_transcript(video['id'])
                 has_transcript = transcript is not None and len(transcript) > 50
                 
@@ -492,7 +528,7 @@ class PodcastStreamApp:
                     summary = ""
                 
                 self.sheets.append_rows(
-                    f'{Config.VIDEOS_SHEET}!A:L',
+                    f'{Config.VIDEOS_SHEET}!A:M',
                     [[
                         video['id'],
                         video['title'],
@@ -503,6 +539,7 @@ class PodcastStreamApp:
                         video['description'],
                         video['view_count'],
                         video['subscriber_count'],
+                        duration_formatted,  # NEW: Duration
                         'Yes' if has_transcript else 'No',
                         summary,
                         datetime.now().isoformat()
