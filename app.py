@@ -1,574 +1,372 @@
-"""
-NBA Podcast Stream - Enhanced with Video Duration, Likes, Comments
-Fetches video length, views, channel stats, and more metadata
-"""
-
 import os
-import json
-import time
+import logging
 from datetime import datetime, timedelta
-from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
+import json
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
-from google.oauth2 import service_account
-import anthropic
+from youtube_transcript_api import YouTubeTranscriptApi
+from anthropic import Anthropic
 
-# ============================================
-# CONFIGURATION
-# ============================================
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-class Config:
-    # Get from environment variables
-    GOOGLE_CREDENTIALS_JSON = os.getenv('GOOGLE_CREDENTIALS_JSON')
-    YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
-    ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
-    SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
-    
-    # Settings
-    CHANNELS_SHEET = 'Sheet1'
-    VIDEOS_SHEET = 'Videos'
-    CHANNEL_CACHE_SHEET = 'ChannelCache'
-    MAX_VIDEOS_PER_CHANNEL = 3
-    VIDEO_CACHE_DAYS = 7
-    BATCH_SIZE = 15
-    CHANNEL_GROUPS = 2
+# Configuration
+YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY')
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
+GOOGLE_SHEETS_CREDENTIALS = os.environ.get('GOOGLE_SHEETS_CREDENTIALS')
+SHEET_NAME = 'NBA Podcast Stream'
 
-# ============================================
-# GOOGLE SHEETS CLIENT
-# ============================================
+# YouTube channels to monitor
+CHANNELS = [
+    'UCxgXtBJHYRhix8TSEa8j6iQ',  # Road Trippin' Show
+    'UC9Pd-5TAwCg5Y_P8BDGPjQg',  # All The Smoke
+    'UC3qn0bAOiQRPqsVSv8vXhyw',  # The Draymond Green Show
+    'UCVKW7R2vPwRiKFOL-QJzTrw',  # Above the Rim with DH12
+    'UCxCsJhHPZLpqv1dHCxKx2ew',  # Point Forward with Andre Iguodala
+    'UCYlUCQRNhvCLLs8p02U-Adg',  # Run It Back on FanDuel TV
+    'UCIM6xWLAm-Vwz10oBd-XyVw',  # Gil's Arena
+    'UC3sqm5gLcfPV-ECEy2RJkxA',  # The OGs Show
+    'UCiPGk-oBTeWSXTaXzNT4VmQ',  # 7PM in Brooklyn with Carmelo Anthony & The Kid Mero
+    'UCWhqYkZKOqGQhtx7DsNKGTA',  # Big Fish Energy with David Fizdale and Kelenna Azubuike
+    'UCh5_5D78_L-DKvYNEVTuIxA',  # Bully Ball with Rachel Nichols and DeMarcus Cousins
+    'UCxLr54__LqSF22pRvUYUqQQ',  # Unapologetically Angel with Angel Reese
+    'UCq1rWFHH2yDdaRPBBfT6OBA',  # Come And Talk 2 Me with Mark Jackson and Stephen Jackson
+    'UC_qM9Qp02aQjPljYPz6HzzA',  # The Dunk Bait
+    'UCPlhJvX4PyhZEzz_LlbYFMQ',  # Club Shay Shay
+    'UCqBuVlZvAf0w51g2wrz33gQ',  # Podcast P with Paul George
+    'UC_i_KrVnRStqzAOKFRJuIkg',  # The Old Man and The Three with JJ Redick and Tommy Alter
+    'UCDLwhSKpbTFqGxHQJG5f0jw',  # Up & Adams with Kay Adams
+    'UCVrtm2o0gyFXE_8L-l_GDwg',  # 7 Rings with Grayson Boucher
+    'UC8R4YxIxzASUAiOUUgaVBJw',  # The Draymond Green Show with Baron Davis
+    'UCDGPm9cVUYbvp4Dm8ygIjVQ',  # Knuckleheads with Quentin Richardson & Darius Miles
+    'UCpyqVYKiNKUV5xM-zKS1psg',  # The WHite Noise Podcast with Derrick White
+    'UCxLDCBjCc2d4QNiPJ4_Hl0A',  # VC 3&Out
+    'UCXjXmON_qxCJc7vy7j0fJiw',  # The Why's with CJ McCollum
+    'UCjVIXYqNsD7UoYQTR3A2OyQ',  # The K$K Show
+    'UCLaGjWYEsPeqqM9h-T0lWaA',  # Ryen Russillo Podcast
+    'UCEPLNzwtTMBxYONjZZGYJWg',  # Serge Ibaka | How Hungry Are You?
+    'UC_6zk_GdMuJJmG_k1Q1gq5w',  # Forgotten Seasons
+    'UCKZJ7vWu4S8NPvmn-GdCmaw',  # TIDAL League
+    'UCjpJq6d7A2O1z6zL6Z6SuRA',  # Keepin' It Real with Brandon Jennings
+    'UCBRj6s3mh-Y_pJLSDQYSTqA',  # Out Of Bounds with Gilbert Arenas
+    'UCnQ__7tXOD63tFn_31yFk_w',  # BUCKETS with Nic Batum
+    'UCsCWmjFOdIFdGfQ_g8E1GDw',  # Shots with Shane & Company
+    'UC5sC3eH5tFMFqtOpYfQMk3Q',  # The Backyard Podcast
+    'UCjGlq72Db_gTVqaT8iuA0Pw',  # Mind the Game Podcast with LeBron James and JJ Redick
+    'UCPEyJKdWPLxJUzVDTNJlsAw',  # STRAIGHT GAME PODCAST
+    'UCDgfQF14xRh5aaXv2EYaGNQ',  # Court Vision with BJ Armstrong
+    'UCOkb4YYIW9pUCFf9KdFMdfA',  # The Pivot Podcast
+    'UCJfWJ-QoGVBfvPxYlqwXm6g',  # The Draymond Green Show with Evan Turner  
+    'UCLKBHqVwP2OC1DdmJYXhL0w',  # Bald Man & Ballin with Gary Trent Jr.
+    'UCVPZIbqIRkzpBxDXCJqaOAQ',  # These Guys Must Be On Something
+    'UC3oHr1bQKmMJRdJXWQsGsYA',  # Last Night's Game
+    'UCaQE0oTwEVBlhLXPQAFxRnA'   # Zeke & The Freak
+]
 
-class SheetsClient:
-    def __init__(self):
-        # Parse credentials from environment
-        creds_dict = json.loads(Config.GOOGLE_CREDENTIALS_JSON)
-        creds = service_account.Credentials.from_service_account_info(
-            creds_dict,
-            scopes=['https://www.googleapis.com/auth/spreadsheets']
-        )
-        self.service = build('sheets', 'v4', credentials=creds)
-        self.spreadsheet_id = Config.SPREADSHEET_ID
-    
-    def read_range(self, range_name):
-        """Read values from a range"""
-        result = self.service.spreadsheets().values().get(
-            spreadsheetId=self.spreadsheet_id,
-            range=range_name
-        ).execute()
-        return result.get('values', [])
-    
-    def append_rows(self, range_name, values):
-        """Append rows to a sheet"""
-        body = {'values': values}
-        self.service.spreadsheets().values().append(
-            spreadsheetId=self.spreadsheet_id,
-            range=range_name,
-            valueInputOption='RAW',
-            body=body
-        ).execute()
-    
-    def create_sheet_if_not_exists(self, sheet_name, headers):
-        """Create a sheet with headers if it doesn't exist"""
-        try:
-            # Check if sheet exists
-            sheet_metadata = self.service.spreadsheets().get(
-                spreadsheetId=self.spreadsheet_id
-            ).execute()
-            
-            sheets = sheet_metadata.get('sheets', [])
-            exists = any(s['properties']['title'] == sheet_name for s in sheets)
-            
-            if not exists:
-                # Create sheet
-                request = {
-                    'addSheet': {
-                        'properties': {'title': sheet_name}
-                    }
-                }
-                self.service.spreadsheets().batchUpdate(
-                    spreadsheetId=self.spreadsheet_id,
-                    body={'requests': [request]}
-                ).execute()
-                
-                # Add headers
-                self.append_rows(f'{sheet_name}!A1', [headers])
-                print(f"Created sheet: {sheet_name}")
-        except Exception as e:
-            print(f"Error creating sheet {sheet_name}: {e}")
-
-# ============================================
-# YOUTUBE CLIENT
-# ============================================
-
-class YouTubeClient:
-    def __init__(self):
-        self.api_key = Config.YOUTUBE_API_KEY
-        self.youtube = build('youtube', 'v3', developerKey=self.api_key)
-    
-    def search_channel(self, handle):
-        """Search for a channel by handle"""
-        try:
-            request = self.youtube.search().list(
-                part='snippet',
-                type='channel',
-                q=handle,
-                maxResults=1
-            )
-            response = request.execute()
-            
-            if 'items' in response and len(response['items']) > 0:
-                return response['items'][0]['snippet']['channelId']
-        except Exception as e:
-            print(f"Error searching channel: {e}")
-        return None
-    
-    def get_channel_info(self, channel_id):
-        """Get channel statistics"""
-        try:
-            request = self.youtube.channels().list(
-                part='statistics,snippet',
-                id=channel_id
-            )
-            response = request.execute()
-            
-            if 'items' in response and len(response['items']) > 0:
-                item = response['items'][0]
-                return {
-                    'subscriber_count': item['statistics'].get('subscriberCount', 'Hidden'),
-                    'total_views': item['statistics'].get('viewCount', '0'),
-                    'video_count': item['statistics'].get('videoCount', '0')
-                }
-        except Exception as e:
-            print(f"Error getting channel info: {e}")
-        return {'subscriber_count': 'N/A', 'total_views': '0', 'video_count': '0'}
-    
-    def get_channel_videos(self, channel_id, max_results=3):
-        """Get latest videos from a channel with statistics INCLUDING DURATION, LIKES, COMMENTS"""
-        try:
-            # Get video IDs
-            search_request = self.youtube.search().list(
-                part='snippet',
-                channelId=channel_id,
-                order='date',
-                type='video',
-                maxResults=max_results
-            )
-            search_response = search_request.execute()
-            
-            if 'items' not in search_response:
-                return []
-            
-            # Get video IDs
-            video_ids = [item['id']['videoId'] for item in search_response['items']]
-            
-            # Get video statistics AND contentDetails (includes duration, likes, comments)
-            stats_request = self.youtube.videos().list(
-                part='statistics,snippet,contentDetails',
-                id=','.join(video_ids)
-            )
-            stats_response = stats_request.execute()
-            
-            videos = []
-            for item in stats_response['items']:
-                videos.append({
-                    'id': item['id'],
-                    'title': item['snippet']['title'],
-                    'channel_name': item['snippet']['channelTitle'],
-                    'channel_id': item['snippet']['channelId'],
-                    'published_at': item['snippet']['publishedAt'],
-                    'thumbnail': item['snippet']['thumbnails']['high']['url'],
-                    'description': item['snippet']['description'],
-                    'view_count': item['statistics'].get('viewCount', '0'),
-                    'like_count': item['statistics'].get('likeCount', '0'),
-                    'comment_count': item['statistics'].get('commentCount', '0'),
-                    'duration': item['contentDetails'].get('duration', 'PT0S')
-                })
-            
-            return videos
-            
-        except Exception as e:
-            print(f"Error getting channel videos: {e}")
-            return []
-
-# ============================================
-# TRANSCRIPT FETCHER
-# ============================================
+BATCH_SIZE = 15
+MAX_RESULTS_PER_CHANNEL = 3
 
 class TranscriptFetcher:
     @staticmethod
     def get_transcript(video_id):
-        """Fetch transcript for a YouTube video - try multiple methods"""
-        
-        # Method 1: Try to get manually created English transcript
-        try:
-            transcript_list = YouTubeTranscriptApi.get_transcript(
-                video_id,
-                languages=['en', 'en-US', 'en-GB']
-            )
-            
-            full_text = ' '.join([entry['text'] for entry in transcript_list])
-            full_text = full_text.replace('\n', ' ').replace('  ', ' ').strip()
-            
-            words = full_text.split()
-            limited_text = ' '.join(words[:4000])
-            
-            print(f"✓ Extracted manual transcript: {len(words)} words")
-            return limited_text
-            
-        except (TranscriptsDisabled, NoTranscriptFound):
-            pass
-        except Exception as e:
-            print(f"Manual transcript attempt failed: {str(e)[:50]}")
-        
-        # Method 2: Try to get auto-generated transcript
+        """Fetch transcript for a video"""
         try:
             transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
             
+            # Try to get English transcript
             try:
-                transcript = transcript_list.find_generated_transcript(['en', 'en-US', 'en-GB'])
-                entries = transcript.fetch()
-                
-                full_text = ' '.join([entry['text'] for entry in entries])
-                full_text = full_text.replace('\n', ' ').replace('  ', ' ').strip()
-                
-                words = full_text.split()
-                limited_text = ' '.join(words[:4000])
-                
-                print(f"✓ Extracted auto-generated transcript: {len(words)} words")
-                return limited_text
-                
+                transcript = transcript_list.find_transcript(['en'])
+                segments = transcript.fetch()
+                return ' '.join([segment['text'] for segment in segments])
             except:
-                pass
-            
-        except Exception as e:
-            print(f"Auto-generated transcript attempt failed: {str(e)[:50]}")
-        
-        # Method 3: Try any available transcript
-        try:
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-            
-            for transcript in transcript_list:
+                # Try auto-generated
                 try:
-                    entries = transcript.fetch()
-                    full_text = ' '.join([entry['text'] for entry in entries])
-                    full_text = full_text.replace('\n', ' ').replace('  ', ' ').strip()
-                    
-                    words = full_text.split()
-                    limited_text = ' '.join(words[:4000])
-                    
-                    print(f"✓ Extracted transcript ({transcript.language_code}): {len(words)} words")
-                    return limited_text
+                    transcript = transcript_list.find_generated_transcript(['en'])
+                    segments = transcript.fetch()
+                    return ' '.join([segment['text'] for segment in segments])
                 except:
-                    continue
+                    return None
                     
         except Exception as e:
-            print(f"All transcript methods failed: {str(e)[:50]}")
-        
-        print(f"✗ No transcript available")
-        return None
-
-# ============================================
-# AI SUMMARY GENERATOR
-# ============================================
+            logger.debug(f"No transcript available for {video_id}: {str(e)}")
+            return None
 
 class SummaryGenerator:
-    def __init__(self):
-        self.client = anthropic.Anthropic(api_key=Config.ANTHROPIC_API_KEY)
+    def __init__(self, api_key):
+        self.client = Anthropic(api_key=api_key)
     
     def generate_summary(self, title, transcript):
-        """Generate conversational summary using Claude - ONLY if transcript exists"""
-        
-        if not transcript or len(transcript) < 100:
+        """Generate AI summary from transcript"""
+        if not transcript or len(transcript.strip()) < 50:
             return ""
         
-        prompt = f"""You're writing a summary for HoopsHype readers - basketball fans who want real insights, not fluff. Based on the transcript below, write a 3-4 sentence summary that captures what was actually discussed.
+        # Truncate transcript to first 8000 characters
+        truncated = transcript[:8000]
+        
+        prompt = f"""Based on this NBA podcast episode transcript, write a concise 3-4 sentence summary:
 
-Write in a conversational but informative tone - think sports blog, not academic paper. Use natural language:
-- "Gil breaks down..." not "Arenas provides an analysis of..."
-- "They get into..." not "The discussion encompasses..."
-- "He talks about..." not "He elucidates upon..."
-
-Focus on:
-- The actual basketball topics, debates, or stories discussed
-- Any interesting takes, stats, or insights mentioned
-- What makes this episode worth watching
-- Keep it readable and engaging
-
-Episode: {title}
+Title: {title}
 
 Transcript excerpt:
-{transcript[:3500]}
+{truncated}
 
-Write a natural, conversational summary that sounds like a person wrote it, not a robot."""
-        
+Summary (3-4 sentences only):"""
+
         try:
             message = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=300,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }]
+                max_tokens=200,
+                messages=[{"role": "user", "content": prompt}]
             )
-            
-            return message.content[0].text
-            
+            return message.content[0].text.strip()
         except Exception as e:
-            print(f"AI summary error: {e}")
+            logger.error(f"Error generating summary: {str(e)}")
             return ""
 
-# ============================================
-# DURATION CONVERTER
-# ============================================
-
-def convert_duration(iso_duration):
-    """Convert ISO 8601 duration (PT1H2M10S) to seconds"""
-    import re
+class YouTubeFetcher:
+    def __init__(self, api_key):
+        self.youtube = build('youtube', 'v3', developerKey=api_key)
     
-    pattern = re.compile(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?')
-    match = pattern.match(iso_duration)
-    
-    if not match:
-        return 0
-    
-    hours = int(match.group(1) or 0)
-    minutes = int(match.group(2) or 0)
-    seconds = int(match.group(3) or 0)
-    
-    return hours * 3600 + minutes * 60 + seconds
-
-def format_duration(seconds):
-    """Format seconds to readable duration (1:23:45 or 23:45)"""
-    hours = seconds // 3600
-    minutes = (seconds % 3600) // 60
-    secs = seconds % 60
-    
-    if hours > 0:
-        return f"{hours}:{minutes:02d}:{secs:02d}"
-    else:
-        return f"{minutes}:{secs:02d}"
-
-# ============================================
-# MAIN APPLICATION
-# ============================================
-
-class PodcastStreamApp:
-    def __init__(self):
-        self.sheets = SheetsClient()
-        self.youtube = YouTubeClient()
-        self.transcript_fetcher = TranscriptFetcher()
-        self.summary_generator = SummaryGenerator()
+    def format_duration(self, duration_iso):
+        """Convert ISO 8601 duration to readable format (e.g., PT1H23M45S -> 1:23:45)"""
+        import re
         
-        # Initialize sheets with enhanced headers (added Duration, Like Count, Comment Count)
-        self.sheets.create_sheet_if_not_exists(
-            Config.VIDEOS_SHEET,
-            ['Video ID', 'Title', 'Channel Name', 'Channel ID', 'Published Date', 
-             'Thumbnail URL', 'Description', 'View Count', 'Subscriber Count', 'Duration',
-             'Like Count', 'Comment Count', 'Transcript Available', 'AI Summary', 'Last Updated']
-        )
-        self.sheets.create_sheet_if_not_exists(
-            Config.CHANNEL_CACHE_SHEET,
-            ['Channel Handle', 'Channel ID', 'Subscriber Count']
-        )
+        if not duration_iso:
+            return ""
+        
+        # Parse ISO 8601 duration (PT1H23M45S)
+        match = re.match(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?', duration_iso)
+        if not match:
+            return ""
+        
+        hours = int(match.group(1)) if match.group(1) else 0
+        minutes = int(match.group(2)) if match.group(2) else 0
+        seconds = int(match.group(3)) if match.group(3) else 0
+        
+        if hours > 0:
+            return f"{hours}:{minutes:02d}:{seconds:02d}"
+        else:
+            return f"{minutes}:{seconds:02d}"
     
-    def get_channel_urls(self):
-        """Get channel URLs from spreadsheet"""
+    def get_channel_videos(self, channel_id):
+        """Fetch recent videos from a channel"""
         try:
-            values = self.sheets.read_range(f'{Config.CHANNELS_SHEET}!A2:A')
-            return [row[0] for row in values if row]
-        except:
+            # Get uploads playlist
+            channel_response = self.youtube.channels().list(
+                part='contentDetails,snippet,statistics',
+                id=channel_id
+            ).execute()
+            
+            if not channel_response.get('items'):
+                return []
+            
+            channel_info = channel_response['items'][0]
+            uploads_playlist = channel_info['contentDetails']['relatedPlaylists']['uploads']
+            channel_name = channel_info['snippet']['title']
+            subscriber_count = channel_info['statistics'].get('subscriberCount', 'Hidden')
+            
+            # Get videos from uploads playlist
+            playlist_response = self.youtube.playlistItems().list(
+                part='contentDetails',
+                playlistId=uploads_playlist,
+                maxResults=MAX_RESULTS_PER_CHANNEL
+            ).execute()
+            
+            video_ids = [item['contentDetails']['videoId'] for item in playlist_response.get('items', [])]
+            
+            if not video_ids:
+                return []
+            
+            # Get detailed video info INCLUDING contentDetails for duration
+            videos_response = self.youtube.videos().list(
+                part='snippet,statistics,contentDetails',
+                id=','.join(video_ids)
+            ).execute()
+            
+            videos = []
+            for item in videos_response.get('items', []):
+                # Get duration from contentDetails
+                duration_iso = item['contentDetails'].get('duration', '')
+                duration_formatted = self.format_duration(duration_iso)
+                
+                video = {
+                    'id': item['id'],
+                    'title': item['snippet']['title'],
+                    'channel_name': channel_name,
+                    'channel_id': channel_id,
+                    'published_at': item['snippet']['publishedAt'],
+                    'thumbnail': item['snippet']['thumbnails']['high']['url'],
+                    'description': item['snippet'].get('description', ''),
+                    'view_count': item['statistics'].get('viewCount', '0'),
+                    'subscriber_count': subscriber_count,
+                    'duration': duration_formatted,  # NEW: Add duration
+                    'like_count': item['statistics'].get('likeCount', '0'),
+                    'comment_count': item['statistics'].get('commentCount', '0')
+                }
+                videos.append(video)
+            
+            return videos
+            
+        except Exception as e:
+            logger.error(f"Error fetching videos for channel {channel_id}: {str(e)}")
             return []
+
+class GoogleSheetsManager:
+    def __init__(self, credentials_json):
+        scope = [
+            'https://spreadsheets.google.com/feeds',
+            'https://www.googleapis.com/auth/drive'
+        ]
+        creds_dict = json.loads(credentials_json)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        self.client = gspread.authorize(creds)
+        self.sheet = None
     
-    def get_cached_channels(self):
-        """Get cached channel IDs"""
+    def get_or_create_sheet(self):
+        """Get existing sheet or create new one"""
         try:
-            values = self.sheets.read_range(f'{Config.CHANNEL_CACHE_SHEET}!A2:C')
-            cache = {}
-            for row in values:
-                if len(row) >= 2:
-                    cache[row[0]] = {'id': row[1], 'subscribers': row[2] if len(row) > 2 else 'N/A'}
-            return cache
-        except:
-            return {}
-    
-    def cache_channel(self, handle, channel_id, subscriber_count):
-        """Cache a channel ID with subscriber count"""
-        self.sheets.append_rows(
-            f'{Config.CHANNEL_CACHE_SHEET}!A:C',
-            [[handle, channel_id, subscriber_count]]
-        )
+            self.sheet = self.client.open(SHEET_NAME).sheet1
+            logger.info(f"Opened existing sheet: {SHEET_NAME}")
+        except gspread.SpreadsheetNotFound:
+            spreadsheet = self.client.create(SHEET_NAME)
+            self.sheet = spreadsheet.sheet1
+            logger.info(f"Created new sheet: {SHEET_NAME}")
+            
+            # Set headers with Duration column
+            headers = [
+                'Video ID', 'Title', 'Channel Name', 'Channel ID', 
+                'Published Date', 'Thumbnail URL', 'Description', 
+                'View Count', 'Subscriber Count', 'Duration',  # Duration is column J
+                'Like Count', 'Comment Count', 
+                'Transcript Available', 'AI Summary', 'Last Updated'
+            ]
+            self.sheet.append_row(headers)
+            
+            # Share with anyone with link
+            spreadsheet.share('', perm_type='anyone', role='reader')
     
     def get_existing_video_ids(self):
-        """Get IDs of videos already in the sheet"""
+        """Get set of video IDs already in sheet"""
         try:
-            values = self.sheets.read_range(f'{Config.VIDEOS_SHEET}!A2:A')
-            return set(row[0] for row in values if row)
+            video_ids = self.sheet.col_values(1)[1:]  # Skip header
+            return set(video_ids)
         except:
             return set()
     
-    def extract_channel_handle(self, url):
-        """Extract channel handle from URL"""
-        import re
-        
-        match = re.search(r'@([^/]+)', url)
-        if match:
-            return match.group(1)
-        
-        match = re.search(r'channel/([^/]+)', url)
-        if match:
-            return match.group(1)
-        
-        return None
+    def add_video(self, video, has_transcript=False, summary=""):
+        """Add new video to sheet"""
+        row = [
+            video['id'],
+            video['title'],
+            video['channel_name'],
+            video['channel_id'],
+            video['published_at'],
+            video['thumbnail'],
+            video['description'][:500],  # Limit description length
+            video['view_count'],
+            video['subscriber_count'],
+            video['duration'],  # NEW: Duration column
+            video['like_count'],
+            video['comment_count'],
+            'Yes' if has_transcript else 'No',
+            summary,
+            datetime.utcnow().isoformat()
+        ]
+        self.sheet.append_row(row)
     
-    def resolve_channel_ids(self, channel_urls):
-        """Resolve channel URLs to IDs"""
-        cached = self.get_cached_channels()
-        channel_data = []
+    def update_video(self, row_index, video, has_transcript=False, summary=""):
+        """Update existing video row"""
+        updates = {
+            'View Count': video['view_count'],
+            'Subscriber Count': video['subscriber_count'],
+            'Duration': video['duration'],  # Update duration too
+            'Like Count': video['like_count'],
+            'Comment Count': video['comment_count'],
+            'Transcript Available': 'Yes' if has_transcript else 'No',
+            'AI Summary': summary,
+            'Last Updated': datetime.utcnow().isoformat()
+        }
         
-        for url in channel_urls:
-            handle = self.extract_channel_handle(url)
-            if not handle:
+        # Update specific cells
+        headers = self.sheet.row_values(1)
+        for field, value in updates.items():
+            try:
+                col_index = headers.index(field) + 1
+                self.sheet.update_cell(row_index, col_index, value)
+            except ValueError:
                 continue
-            
-            if handle in cached:
-                channel_data.append(cached[handle])
-                print(f"Using cached ID for {handle}")
-            else:
-                if handle.startswith('UC'):
-                    channel_id = handle
-                else:
-                    channel_id = self.youtube.search_channel(handle)
-                
-                if channel_id:
-                    # Get channel stats
-                    channel_info = self.youtube.get_channel_info(channel_id)
-                    subscriber_count = channel_info['subscriber_count']
-                    
-                    channel_data.append({'id': channel_id, 'subscribers': subscriber_count})
-                    self.cache_channel(handle, channel_id, subscriber_count)
-                    print(f"Resolved {handle} -> {channel_id} ({subscriber_count} subs)")
-                    time.sleep(0.2)
-        
-        return channel_data
+
+class PodcastStreamManager:
+    def __init__(self):
+        self.youtube = YouTubeFetcher(YOUTUBE_API_KEY)
+        self.sheets = GoogleSheetsManager(GOOGLE_SHEETS_CREDENTIALS)
+        self.transcript_fetcher = TranscriptFetcher()
+        self.summary_generator = SummaryGenerator(ANTHROPIC_API_KEY)
     
     def run(self):
-        """Main update function"""
-        print(f"\n{'='*60}")
-        print(f"NBA Podcast Stream Update - {datetime.now()}")
-        print(f"{'='*60}\n")
+        """Main execution flow"""
+        logger.info("Starting NBA Podcast Stream update...")
         
-        all_channel_urls = self.get_channel_urls()
-        print(f"Total channels: {len(all_channel_urls)}")
+        # Initialize sheet
+        self.sheets.get_or_create_sheet()
+        existing_ids = self.sheets.get_existing_video_ids()
         
-        current_hour = datetime.now().hour
-        group_index = (current_hour // 6) % Config.CHANNEL_GROUPS
-        
-        channels_per_group = len(all_channel_urls) // Config.CHANNEL_GROUPS
-        start_idx = group_index * channels_per_group
-        end_idx = start_idx + channels_per_group if group_index < Config.CHANNEL_GROUPS - 1 else len(all_channel_urls)
-        channel_urls = all_channel_urls[start_idx:end_idx]
-        
-        print(f"Processing group {group_index + 1}/{Config.CHANNEL_GROUPS}: channels {start_idx + 1}-{end_idx}")
-        
-        channel_data = self.resolve_channel_ids(channel_urls)
-        print(f"Resolved {len(channel_data)} channel IDs\n")
-        
+        # Collect videos from all channels
         all_videos = []
-        cutoff_date = datetime.now() - timedelta(days=Config.VIDEO_CACHE_DAYS)
+        for channel_id in CHANNELS:
+            videos = self.youtube.get_channel_videos(channel_id)
+            all_videos.extend(videos)
+            logger.info(f"Fetched {len(videos)} videos from channel {channel_id}")
         
-        for i, data in enumerate(channel_data):
-            print(f"Fetching videos from channel {i + 1}/{len(channel_data)}")
-            try:
-                videos = self.youtube.get_channel_videos(
-                    data['id'],
-                    Config.MAX_VIDEOS_PER_CHANNEL
-                )
-                
-                for video in videos:
-                    pub_date = datetime.fromisoformat(video['published_at'].replace('Z', '+00:00'))
-                    if pub_date.replace(tzinfo=None) >= cutoff_date:
-                        video['subscriber_count'] = data['subscribers']
-                        all_videos.append(video)
-                
-                time.sleep(0.3)
-            except Exception as e:
-                print(f"Error fetching channel: {e}")
+        # Sort by published date (newest first)
+        all_videos.sort(key=lambda x: x['published_at'], reverse=True)
         
-        print(f"\nFetched {len(all_videos)} total videos")
-        
-        all_videos.sort(key=lambda v: v['published_at'], reverse=True)
-        
-        existing_ids = self.get_existing_video_ids()
-        new_videos = [v for v in all_videos if v['id'] not in existing_ids]
-        
-        print(f"Found {len(new_videos)} new videos to process\n")
-        
+        # Process videos in batches
         processed = 0
-        batch_count = min(Config.BATCH_SIZE, len(new_videos))
-        
-        for i in range(batch_count):
-            video = new_videos[i]
+        for video in all_videos:
+            if processed >= BATCH_SIZE:
+                logger.info(f"Reached batch limit of {BATCH_SIZE}")
+                break
             
-            try:
-                print(f"Processing {i + 1}/{batch_count}: {video['title'][:60]}...")
-                
-                # Convert duration
-                duration_seconds = convert_duration(video['duration'])
-                duration_formatted = format_duration(duration_seconds)
-                
-                transcript = self.transcript_fetcher.get_transcript(video['id'])
-                has_transcript = transcript is not None and len(transcript) > 50
-                
-                if has_transcript:
-                    summary = self.summary_generator.generate_summary(
-                        video['title'],
-                        transcript
-                    )
-                else:
-                    summary = ""
-                
-                self.sheets.append_rows(
-                    f'{Config.VIDEOS_SHEET}!A:O',
-                    [[
-                        video['id'],
-                        video['title'],
-                        video['channel_name'],
-                        video['channel_id'],
-                        video['published_at'],
-                        video['thumbnail'],
-                        video['description'],
-                        video['view_count'],
-                        video['subscriber_count'],
-                        duration_formatted,  # Duration
-                        video['like_count'],  # Like Count
-                        video['comment_count'],  # Comment Count
-                        'Yes' if has_transcript else 'No',
-                        summary,
-                        datetime.now().isoformat()
-                    ]]
+            # Get transcript
+            transcript = self.transcript_fetcher.get_transcript(video['id'])
+            has_transcript = transcript is not None and len(transcript) > 50
+            
+            # Generate summary if transcript available
+            summary = ""
+            if has_transcript:
+                summary = self.summary_generator.generate_summary(
+                    video['title'],
+                    transcript
                 )
-                
+            
+            # Add or update video
+            if video['id'] not in existing_ids:
+                self.sheets.add_video(video, has_transcript, summary)
+                logger.info(f"Added new video: {video['title'][:50]}... (Duration: {video['duration']})")
                 processed += 1
-                time.sleep(2)
-                
-            except Exception as e:
-                print(f"Error processing video: {e}")
+            else:
+                # Update existing (stats may have changed)
+                all_data = self.sheets.sheet.get_all_values()
+                for idx, row in enumerate(all_data[1:], start=2):
+                    if row[0] == video['id']:
+                        self.sheets.update_video(idx, video, has_transcript, summary)
+                        logger.info(f"Updated video: {video['title'][:50]}...")
+                        processed += 1
+                        break
         
-        print(f"\n✓ Successfully processed {processed} new videos")
-        print(f"{'='*60}\n")
-        
-        return {
-            'success': True,
-            'group_processed': group_index + 1,
-            'channels_in_group': len(channel_data),
-            'videos_found': len(all_videos),
-            'new_videos_processed': processed
-        }
+        logger.info(f"Completed! Processed {processed} videos")
 
-# ============================================
-# ENTRY POINT
-# ============================================
+def handler(event=None, context=None):
+    """Handler for serverless deployment"""
+    manager = PodcastStreamManager()
+    manager.run()
+    return {'statusCode': 200, 'body': 'Success'}
 
 if __name__ == '__main__':
-    app = PodcastStreamApp()
-    result = app.run()
-    print(f"Result: {result}")
+    handler()
