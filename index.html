@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NBA Podcast Stream - Ultimate</title>
+    <title>NBA Podcast Stream</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -14,7 +14,7 @@
             color: #333;
         }
         
-        .container { max-width: 1400px; margin: 0 auto; }
+        .container { max-width: 1600px; margin: 0 auto; }
         
         .header {
             text-align: center;
@@ -25,25 +25,6 @@
         
         .header h1 { font-size: 36px; color: #2c3e50; margin-bottom: 10px; }
         .header p { color: #7f8c8d; font-size: 16px; }
-        
-        /* Stats Banner */
-        .stats-banner {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-box {
-            text-align: center;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .stat-box .number { font-size: 22px; font-weight: bold; color: #e74c3c; }
-        .stat-box .label { font-size: 11px; color: #7f8c8d; margin-top: 5px; }
         
         /* Controls */
         .controls {
@@ -87,11 +68,11 @@
         
         .sort-label { font-weight: 600; color: #555; align-self: center; }
         
-        /* TWO COLUMN LAYOUT */
+        /* THREE COLUMN LAYOUT */
         .video-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 30px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
             margin-bottom: 30px;
         }
         
@@ -136,7 +117,7 @@
             z-index: 15;
         }
         
-        /* Thumbnail */
+        /* Thumbnail with embedded playback */
         .video-thumbnail {
             position: relative;
             padding-bottom: 56.25%;
@@ -153,6 +134,10 @@
             object-fit: cover;
         }
         
+        .video-thumbnail.playing img {
+            display: none;
+        }
+        
         .play-button {
             position: absolute;
             top: 50%;
@@ -163,6 +148,7 @@
             background: rgba(231, 76, 60, 0.9);
             border-radius: 50%;
             z-index: 10;
+            transition: all 0.3s;
         }
         
         .play-button::after {
@@ -180,11 +166,26 @@
         
         .play-button:hover { background: rgba(231, 76, 60, 1); transform: translate(-50%, -50%) scale(1.1); }
         
+        .video-iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: none;
+            z-index: 20;
+        }
+        
+        .video-iframe.playing {
+            display: block;
+        }
+        
         /* Content */
         .video-content { padding: 20px; }
         
         .video-title {
-            font-size: 17px;
+            font-size: 16px;
             font-weight: 600;
             line-height: 1.4;
             margin-bottom: 10px;
@@ -214,9 +215,13 @@
             font-weight: 600;
             color: #e74c3c;
             cursor: pointer;
+            transition: color 0.2s;
         }
         
-        .channel-name:hover { text-decoration: underline; }
+        .channel-name:hover { 
+            color: #c0392b;
+            text-decoration: underline; 
+        }
         
         .channel-stats { font-size: 11px; color: #95a5a6; margin-bottom: 10px; }
         
@@ -249,13 +254,32 @@
             font-weight: 600;
         }
         
-        .player-mentions {
+        .player-mentions, .team-mentions {
             margin-top: 8px;
             font-size: 11px;
             color: #666;
             padding: 6px 8px;
-            background: #fff3cd;
             border-radius: 4px;
+        }
+        
+        .player-mentions {
+            background: #fff3cd;
+        }
+        
+        .team-mentions {
+            background: #d1ecf1;
+        }
+        
+        .clickable-name {
+            color: #0056b3;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: underline;
+            transition: color 0.2s;
+        }
+        
+        .clickable-name:hover {
+            color: #003d82;
         }
         
         .video-description {
@@ -294,7 +318,11 @@
         
         .error { color: #e74c3c; }
         
-        @media (max-width: 1024px) {
+        @media (max-width: 1400px) {
+            .video-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 900px) {
             .video-grid { grid-template-columns: 1fr; }
             .header h1 { font-size: 28px; }
         }
@@ -304,35 +332,29 @@
     <div class="container">
         <div class="header">
             <h1>🏀 NBA Podcast Stream</h1>
-            <p>Latest episodes with advanced analytics</p>
+            <p>Latest episodes with AI summaries and insights</p>
         </div>
-
-        <div class="stats-banner" id="statsBanner"></div>
 
         <div class="controls">
             <input 
                 type="text" 
                 class="search-bar" 
                 id="searchBar" 
-                placeholder="🔍 Search title, channel, description, topics, players..."
+                placeholder="🔍 Search title, channel, description, topics, players, teams..."
             >
             
             <div class="filters">
-                <button class="filter-btn active" data-filter="all">All</button>
-                <button class="filter-btn" data-filter="summaries">With Summaries</button>
+                <button class="filter-btn active" data-filter="all">All Episodes</button>
+                <button class="filter-btn" data-filter="summaries">With AI Summaries</button>
                 <button class="filter-btn" data-filter="trending">🔥 Trending</button>
                 <button class="filter-btn" data-filter="new">🆕 New Today</button>
-                <button class="filter-btn" data-filter="hot-discussion">💬 Hot Discussion</button>
-                <button class="filter-btn" data-filter="high-engagement">⭐ High Engagement</button>
             </div>
 
             <div class="sort-controls">
                 <span class="sort-label">Sort:</span>
                 <button class="sort-btn active" data-sort="date">Latest</button>
-                <button class="sort-btn" data-sort="views">Views</button>
-                <button class="sort-btn" data-sort="duration">Duration</button>
-                <button class="sort-btn" data-sort="engagement">Engagement</button>
-                <button class="sort-btn" data-sort="channel">Channel</button>
+                <button class="sort-btn" data-sort="views">Most Viewed</button>
+                <button class="sort-btn" data-sort="channel">Channel A-Z</button>
             </div>
         </div>
 
@@ -348,10 +370,35 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script>
         const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRr8GiFRfKLquD0j49JqKIL11tnulG7--WeJsvP3nqFc72EeQM3RsQjnWeXlgcVoR2RL5y7oqYbfpSs/pub?gid=162816128&single=true&output=csv';
-        const ITEMS_PER_LOAD = 10;
+        const ITEMS_PER_LOAD = 15;
         
-        const NBA_PLAYERS = ['LeBron', 'Curry', 'Durant', 'Giannis', 'Jokic', 'Embiid', 'Tatum', 'Luka', 'Harden', 'Booker', 'Davis', 'Butler', 'Lillard', 'Mitchell', 'Young', 'Morant', 'Edwards', 'Fox', 'Wembanyama', 'Shaq', 'Jordan', 'Kobe'];
-        const NBA_TEAMS = ['Lakers', 'Warriors', 'Celtics', 'Heat', 'Bucks', 'Nuggets', 'Suns', 'Mavericks', 'Sixers', '76ers', 'Knicks', 'Clippers', 'Kings'];
+        // Full NBA player names
+        const NBA_PLAYERS = {
+            'LeBron': 'LeBron James',
+            'Curry': 'Stephen Curry',
+            'Durant': 'Kevin Durant',
+            'Giannis': 'Giannis Antetokounmpo',
+            'Jokic': 'Nikola Jokic',
+            'Embiid': 'Joel Embiid',
+            'Tatum': 'Jayson Tatum',
+            'Luka': 'Luka Doncic',
+            'Harden': 'James Harden',
+            'Booker': 'Devin Booker',
+            'Davis': 'Anthony Davis',
+            'Butler': 'Jimmy Butler',
+            'Lillard': 'Damian Lillard',
+            'Mitchell': 'Donovan Mitchell',
+            'Young': 'Trae Young',
+            'Morant': 'Ja Morant',
+            'Edwards': 'Anthony Edwards',
+            'Fox': 'De\'Aaron Fox',
+            'Wembanyama': 'Victor Wembanyama',
+            'Shaq': 'Shaquille O\'Neal',
+            'Jordan': 'Michael Jordan',
+            'Kobe': 'Kobe Bryant'
+        };
+        
+        const NBA_TEAMS = ['Lakers', 'Warriors', 'Celtics', 'Heat', 'Bucks', 'Nuggets', 'Suns', 'Mavericks', 'Sixers', '76ers', 'Knicks', 'Clippers', 'Kings', 'Grizzlies', 'Cavaliers', 'Thunder', 'Timberwolves', 'Spurs'];
         const TOPICS = ['Trade', 'Playoff', 'Draft', 'MVP', 'Championship', 'Finals', 'Injury', 'Analysis', 'Recap', 'Preview'];
         
         let allVideos = [];
@@ -362,6 +409,8 @@
         let searchQuery = '';
         let isLoading = false;
         let channelStats = {};
+        let currentlyPlayingIndex = -1;
+        let channelFilter = null;
         
         function formatNumber(num) {
             const n = parseInt(num);
@@ -425,9 +474,12 @@
         function detectPlayers(text) {
             if (!text) return {};
             const mentions = {};
-            NBA_PLAYERS.forEach(player => {
-                const matches = text.match(new RegExp(player, 'gi'));
-                if (matches) mentions[player] = matches.length;
+            Object.keys(NBA_PLAYERS).forEach(key => {
+                const regex = new RegExp(key, 'gi');
+                const matches = text.match(regex);
+                if (matches) {
+                    mentions[NBA_PLAYERS[key]] = matches.length;
+                }
             });
             return mentions;
         }
@@ -462,10 +514,73 @@
             return stats;
         }
         
-        function playVideo(videoId, event) {
+        function playVideo(videoId, cardIndex, event) {
             event.preventDefault();
             event.stopPropagation();
-            window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+            
+            const card = event.target.closest('.video-card');
+            const thumbnail = card.querySelector('.video-thumbnail');
+            const img = thumbnail.querySelector('img');
+            const playButton = thumbnail.querySelector('.play-button');
+            
+            let iframe = thumbnail.querySelector('.video-iframe');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.className = 'video-iframe';
+                iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+                iframe.allowFullscreen = true;
+                thumbnail.appendChild(iframe);
+            }
+            
+            // Enable YouTube API for tracking video end
+            iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`;
+            iframe.classList.add('playing');
+            thumbnail.classList.add('playing');
+            img.style.display = 'none';
+            playButton.style.display = 'none';
+            
+            currentlyPlayingIndex = cardIndex;
+            
+            // Setup listener for when video ends
+            window.addEventListener('message', function(e) {
+                if (e.origin !== 'https://www.youtube.com') return;
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.event === 'onStateChange' && data.info === 0) {
+                        // Video ended (state 0)
+                        playNextVideo();
+                    }
+                } catch(err) {}
+            });
+        }
+        
+        function playNextVideo() {
+            const nextIndex = currentlyPlayingIndex + 1;
+            if (nextIndex < filteredVideos.length) {
+                const cards = document.querySelectorAll('.video-card');
+                if (nextIndex < cards.length) {
+                    // Scroll to next video
+                    cards[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    setTimeout(() => {
+                        const playButton = cards[nextIndex].querySelector('.play-button');
+                        if (playButton) {
+                            playButton.click();
+                        }
+                    }, 1000);
+                }
+            }
+        }
+        
+        function filterByChannel(channelName) {
+            channelFilter = channelFilter === channelName ? null : channelName;
+            filterVideos();
+        }
+        
+        function filterByName(name) {
+            searchQuery = name;
+            document.getElementById('searchBar').value = name;
+            filterVideos();
         }
         
         function createVideoCard(video, index) {
@@ -488,98 +603,91 @@
                 channelInfo = `<div class="channel-stats">Avg: ${avgMin}min • ${freq}</div>`;
             }
             
-            return `
-                <div class="video-card">
-                    ${isNew(video.publishedDate) ? '<div class="badge new-badge">NEW</div>' : ''}
-                    ${isTrending(video.viewCount) ? '<div class="badge trending-badge">🔥 TRENDING</div>' : ''}
-                    ${episodeNum ? `<div class="badge episode-badge">${episodeNum}</div>` : ''}
-                    ${engagement > 5 ? `<div class="badge engagement-badge">⭐ ${engagement.toFixed(1)}%</div>` : ''}
-                    ${hotDiscussion ? '<div class="badge discussion-badge">🔥 Hot</div>' : ''}
-                    
-                    <div class="video-thumbnail" onclick="playVideo('${video.id}', event)">
-                        <img src="${video.thumbnail}" alt="${video.title}">
-                        ${video.duration ? `<div class="duration-badge">⏱️ ${video.duration}</div>` : ''}
-                        <div class="play-button"></div>
+            const card = document.createElement('div');
+            card.className = 'video-card';
+            
+            card.innerHTML = `
+                ${isNew(video.publishedDate) ? '<div class="badge new-badge">NEW</div>' : ''}
+                ${isTrending(video.viewCount) ? '<div class="badge trending-badge">🔥 TRENDING</div>' : ''}
+                ${episodeNum ? `<div class="badge episode-badge">${episodeNum}</div>` : ''}
+                ${engagement > 5 ? `<div class="badge engagement-badge">⭐ ${engagement.toFixed(1)}%</div>` : ''}
+                ${hotDiscussion ? '<div class="badge discussion-badge">🔥 Hot</div>' : ''}
+                
+                <div class="video-thumbnail" onclick="playVideo('${video.id}', ${index}, event)">
+                    <img src="${video.thumbnail}" alt="${video.title.replace(/"/g, '&quot;')}">
+                    ${video.duration ? `<div class="duration-badge">⏱️ ${video.duration}</div>` : ''}
+                    <div class="play-button"></div>
+                </div>
+                
+                <div class="video-content">
+                    <h3 class="video-title">
+                        <a href="https://www.youtube.com/watch?v=${video.id}" target="_blank">${video.title}</a>
+                    </h3>
+                    <div class="video-meta">
+                        <span class="channel-name" onclick="filterByChannel('${video.channelName.replace(/'/g, "\\'")}')">${video.channelName}</span>
+                        <span>📅 ${formatDate(video.publishedDate)}</span>
                     </div>
-                    
-                    <div class="video-content">
-                        <h3 class="video-title">
-                            <a href="https://www.youtube.com/watch?v=${video.id}" target="_blank">${video.title}</a>
-                        </h3>
-                        <div class="video-meta">
-                            <span class="channel-name">${video.channelName}</span>
-                            <span>📅 ${formatDate(video.publishedDate)}</span>
-                        </div>
-                        ${channelInfo}
-                        <div class="stats-row">
-                            <div class="stat-item">👁️ <strong>${formatNumber(video.viewCount)}</strong></div>
-                            <div class="stat-item">👥 <strong>${formatNumber(video.subscriberCount)}</strong></div>
-                            <div class="stat-item">👍 <strong>${formatNumber(video.likeCount)}</strong></div>
-                            <div class="stat-item">💬 <strong>${formatNumber(video.commentCount)}</strong></div>
-                        </div>
-                        ${topics.length > 0 ? `<div class="topic-tags">${topics.map(t => `<span class="topic-tag">#${t}</span>`).join('')}</div>` : ''}
-                        ${topPlayers.length > 0 ? `<div class="player-mentions">🏀 ${topPlayers.map(([n, c]) => `${n} (${c})`).join(', ')}</div>` : ''}
-                        ${teams.length > 0 ? `<div class="player-mentions">🏆 Teams: ${teams.slice(0, 3).join(', ')}</div>` : ''}
-                        ${video.description ? `<div class="video-description">${video.description.substring(0, 200)}...</div>` : ''}
-                        ${video.summary ? `<div class="video-summary"><div class="summary-label">🤖 AI Summary:</div>${video.summary}</div>` : ''}
+                    ${channelInfo}
+                    <div class="stats-row">
+                        <div class="stat-item">👁️ <strong>${formatNumber(video.viewCount)}</strong></div>
+                        <div class="stat-item">👥 <strong>${formatNumber(video.subscriberCount)}</strong></div>
+                        ${video.likeCount !== '0' ? `<div class="stat-item">👍 <strong>${formatNumber(video.likeCount)}</strong></div>` : ''}
+                        ${video.commentCount !== '0' ? `<div class="stat-item">💬 <strong>${formatNumber(video.commentCount)}</strong></div>` : ''}
                     </div>
+                    ${topics.length > 0 ? `<div class="topic-tags">${topics.map(t => `<span class="topic-tag">#${t}</span>`).join('')}</div>` : ''}
+                    ${topPlayers.length > 0 ? `<div class="player-mentions">🏀 ${topPlayers.map(([name, count]) => `<span class="clickable-name" onclick="filterByName('${name.replace(/'/g, "\\'")}')">${name}</span> (${count})`).join(', ')}</div>` : ''}
+                    ${teams.length > 0 ? `<div class="team-mentions">🏆 ${teams.slice(0, 3).map(team => `<span class="clickable-name" onclick="filterByName('${team}')">${team}</span>`).join(', ')}</div>` : ''}
+                    ${video.description ? `<div class="video-description">${video.description.substring(0, 200)}...</div>` : ''}
+                    ${video.summary ? `<div class="video-summary"><div class="summary-label">🤖 AI Summary:</div>${video.summary}</div>` : ''}
                 </div>
             `;
-        }
-        
-        function createStatsBanner(videos) {
-            const totalViews = videos.reduce((sum, v) => sum + (parseInt(v.viewCount) || 0), 0);
-            const withTranscripts = videos.filter(v => v.transcriptAvailable === 'Yes').length;
-            const uniqueChannels = new Set(videos.map(v => v.channelId)).size;
-            const totalSeconds = videos.reduce((sum, v) => sum + parseDuration(v.duration), 0);
-            const avgEngagement = videos.reduce((sum, v) => sum + calculateEngagement(v), 0) / videos.length;
             
-            const allTopics = {};
-            videos.forEach(v => {
-                extractTopics(`${v.title} ${v.description}`).forEach(t => {
-                    allTopics[t] = (allTopics[t] || 0) + 1;
-                });
-            });
-            const topTopic = Object.entries(allTopics).sort((a, b) => b[1] - a[1])[0];
-            
-            return `
-                <div class="stat-box"><div class="number">${videos.length}</div><div class="label">Episodes</div></div>
-                <div class="stat-box"><div class="number">${formatNumber(totalViews)}</div><div class="label">Total Views</div></div>
-                <div class="stat-box"><div class="number">${uniqueChannels}</div><div class="label">Podcasts</div></div>
-                <div class="stat-box"><div class="number">${withTranscripts}</div><div class="label">With Summaries</div></div>
-                <div class="stat-box"><div class="number">${Math.floor(totalSeconds / 3600)}h ${Math.floor((totalSeconds % 3600) / 60)}m</div><div class="label">Total Content</div></div>
-                <div class="stat-box"><div class="number">${avgEngagement.toFixed(1)}%</div><div class="label">Avg Engagement</div></div>
-                ${topTopic ? `<div class="stat-box"><div class="number">#${topTopic[0]}</div><div class="label">Top Topic</div></div>` : ''}
-            `;
+            return card;
         }
         
         function filterVideos() {
             let result = allVideos;
             
+            // Channel filter
+            if (channelFilter) {
+                result = result.filter(v => v.channelName === channelFilter);
+            }
+            
+            // Search filter
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
                 result = result.filter(v => {
                     const fullText = `${v.title} ${v.channelName} ${v.description}`.toLowerCase();
                     const topics = extractTopics(fullText).join(' ').toLowerCase();
                     const players = Object.keys(detectPlayers(fullText)).join(' ').toLowerCase();
-                    return fullText.includes(query) || topics.includes(query) || players.includes(query);
+                    const teams = detectTeams(fullText).join(' ').toLowerCase();
+                    return fullText.includes(query) || topics.includes(query) || players.includes(query) || teams.includes(query);
                 });
             }
             
+            // Category filter
             switch(currentFilter) {
-                case 'summaries': result = result.filter(v => v.transcriptAvailable === 'Yes'); break;
-                case 'trending': result = result.filter(v => isTrending(v.viewCount)); break;
-                case 'new': result = result.filter(v => isNew(v.publishedDate)); break;
-                case 'hot-discussion': result = result.filter(v => isHotDiscussion(v)); break;
-                case 'high-engagement': result = result.filter(v => calculateEngagement(v) > 5); break;
+                case 'summaries': 
+                    result = result.filter(v => v.transcriptAvailable === 'Yes' && v.summary && v.summary.trim().length > 0); 
+                    break;
+                case 'trending': 
+                    result = result.filter(v => isTrending(v.viewCount)); 
+                    break;
+                case 'new': 
+                    result = result.filter(v => isNew(v.publishedDate)); 
+                    break;
             }
             
+            // Sort
             switch(currentSort) {
-                case 'views': result.sort((a, b) => parseInt(b.viewCount) - parseInt(a.viewCount)); break;
-                case 'duration': result.sort((a, b) => parseDuration(b.duration) - parseDuration(a.duration)); break;
-                case 'engagement': result.sort((a, b) => calculateEngagement(b) - calculateEngagement(a)); break;
-                case 'channel': result.sort((a, b) => a.channelName.localeCompare(b.channelName)); break;
-                default: result.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+                case 'views': 
+                    result.sort((a, b) => parseInt(b.viewCount) - parseInt(a.viewCount)); 
+                    break;
+                case 'channel': 
+                    result.sort((a, b) => a.channelName.localeCompare(b.channelName)); 
+                    break;
+                default: 
+                    result.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
             }
             
             filteredVideos = result;
@@ -592,11 +700,15 @@
             const videosToShow = filteredVideos.slice(0, displayedCount);
             
             if (videosToShow.length === 0) {
-                grid.innerHTML = '<div class="no-videos">No episodes found.</div>';
+                grid.innerHTML = '<div class="no-videos">No episodes found matching your criteria.</div>';
                 return;
             }
             
-            grid.innerHTML = videosToShow.map((video, i) => createVideoCard(video, i)).join('');
+            grid.innerHTML = '';
+            videosToShow.forEach((video, i) => {
+                const card = createVideoCard(video, i);
+                grid.appendChild(card);
+            });
         }
         
         function handleScroll() {
@@ -647,7 +759,6 @@
                 })).filter(v => v.id);
                 
                 channelStats = calculateChannelStats(allVideos);
-                document.getElementById('statsBanner').innerHTML = createStatsBanner(allVideos);
                 filterVideos();
             } catch (error) {
                 document.getElementById('videoGrid').innerHTML = `<div class="error">Unable to load: ${error.message}</div>`;
@@ -662,6 +773,7 @@
                 clearTimeout(searchTimeout);
                 searchTimeout = setTimeout(() => {
                     searchQuery = e.target.value;
+                    channelFilter = null; // Clear channel filter when searching
                     filterVideos();
                 }, 300);
             });
