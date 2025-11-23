@@ -1,5 +1,5 @@
 """
-NBA Podcast Stream - Enhanced with Video Duration
+NBA Podcast Stream - Enhanced with Video Duration, Likes, Comments
 Fetches video length, views, channel stats, and more metadata
 """
 
@@ -12,7 +12,6 @@ from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFoun
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 import anthropic
-import requests
 
 # ============================================
 # CONFIGURATION
@@ -143,7 +142,7 @@ class YouTubeClient:
         return {'subscriber_count': 'N/A', 'total_views': '0', 'video_count': '0'}
     
     def get_channel_videos(self, channel_id, max_results=3):
-        """Get latest videos from a channel with statistics INCLUDING DURATION"""
+        """Get latest videos from a channel with statistics INCLUDING DURATION, LIKES, COMMENTS"""
         try:
             # Get video IDs
             search_request = self.youtube.search().list(
@@ -161,7 +160,7 @@ class YouTubeClient:
             # Get video IDs
             video_ids = [item['id']['videoId'] for item in search_response['items']]
             
-            # Get video statistics AND contentDetails (includes duration)
+            # Get video statistics AND contentDetails (includes duration, likes, comments)
             stats_request = self.youtube.videos().list(
                 part='statistics,snippet,contentDetails',
                 id=','.join(video_ids)
@@ -181,7 +180,7 @@ class YouTubeClient:
                     'view_count': item['statistics'].get('viewCount', '0'),
                     'like_count': item['statistics'].get('likeCount', '0'),
                     'comment_count': item['statistics'].get('commentCount', '0'),
-                    'duration': item['contentDetails'].get('duration', 'PT0S')  # ISO 8601 duration
+                    'duration': item['contentDetails'].get('duration', 'PT0S')
                 })
             
             return videos
@@ -359,12 +358,12 @@ class PodcastStreamApp:
         self.transcript_fetcher = TranscriptFetcher()
         self.summary_generator = SummaryGenerator()
         
-        # Initialize sheets with enhanced headers (added Duration)
+        # Initialize sheets with enhanced headers (added Duration, Like Count, Comment Count)
         self.sheets.create_sheet_if_not_exists(
             Config.VIDEOS_SHEET,
             ['Video ID', 'Title', 'Channel Name', 'Channel ID', 'Published Date', 
              'Thumbnail URL', 'Description', 'View Count', 'Subscriber Count', 'Duration',
-             'Transcript Available', 'AI Summary', 'Last Updated']
+             'Like Count', 'Comment Count', 'Transcript Available', 'AI Summary', 'Last Updated']
         )
         self.sheets.create_sheet_if_not_exists(
             Config.CHANNEL_CACHE_SHEET,
@@ -528,7 +527,7 @@ class PodcastStreamApp:
                     summary = ""
                 
                 self.sheets.append_rows(
-                    f'{Config.VIDEOS_SHEET}!A:M',
+                    f'{Config.VIDEOS_SHEET}!A:O',
                     [[
                         video['id'],
                         video['title'],
@@ -539,7 +538,9 @@ class PodcastStreamApp:
                         video['description'],
                         video['view_count'],
                         video['subscriber_count'],
-                        duration_formatted,  # NEW: Duration
+                        duration_formatted,  # Duration
+                        video['like_count'],  # Like Count
+                        video['comment_count'],  # Comment Count
                         'Yes' if has_transcript else 'No',
                         summary,
                         datetime.now().isoformat()
