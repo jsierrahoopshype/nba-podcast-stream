@@ -26,7 +26,6 @@
         .header h1 { font-size: 36px; color: #2c3e50; margin-bottom: 10px; }
         .header p { color: #7f8c8d; font-size: 16px; }
         
-        /* Controls */
         .controls {
             background: white;
             padding: 20px;
@@ -87,7 +86,6 @@
         
         .sort-label { font-weight: 600; color: #555; align-self: center; }
         
-        /* TRENDING SECTION */
         .trending-section {
             background: white;
             padding: 20px;
@@ -133,14 +131,8 @@
             transition: all 0.2s;
         }
         
-        .trending-item:last-child {
-            border-bottom: none;
-        }
-        
-        .trending-item:hover {
-            color: #e74c3c;
-            padding-left: 5px;
-        }
+        .trending-item:last-child { border-bottom: none; }
+        .trending-item:hover { color: #e74c3c; padding-left: 5px; }
         
         .trending-name {
             font-weight: 600;
@@ -156,7 +148,6 @@
             font-weight: 600;
         }
         
-        /* THREE COLUMN LAYOUT */
         .video-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -175,7 +166,6 @@
         
         .video-card:hover { transform: translateY(-4px); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
         
-        /* Badges */
         .badge {
             position: absolute;
             padding: 4px 10px;
@@ -204,7 +194,6 @@
             letter-spacing: 0.5px;
         }
         
-        /* Thumbnail */
         .video-thumbnail {
             position: relative;
             padding-bottom: 56.25%;
@@ -252,7 +241,6 @@
         .play-button:hover { background: rgba(231, 76, 60, 1); transform: translate(-50%, -50%) scale(1.1); }
         .video-thumbnail.playing .play-button { display: none; }
         
-        /* Content */
         .video-content { padding: 20px; }
         
         .video-title {
@@ -298,10 +286,10 @@
         .duration-display {
             background: #e74c3c;
             color: white;
-            padding: 4px 10px;
+            padding: 5px 12px;
             border-radius: 6px;
             font-weight: 700;
-            font-size: 13px;
+            font-size: 14px;
             letter-spacing: 0.5px;
         }
         
@@ -498,11 +486,11 @@
                 <span class="sort-label">Sort:</span>
                 <button class="sort-btn active" data-sort="date">Latest</button>
                 <button class="sort-btn" data-sort="views">Most Viewed</button>
+                <button class="sort-btn" data-sort="duration">Duration</button>
                 <button class="sort-btn" data-sort="channel">Channel A-Z</button>
             </div>
         </div>
 
-        <!-- TRENDING SECTION -->
         <div class="trending-section" id="trendingSection" style="display: none;">
             <h3>🔥 Trending in Last 36 Hours</h3>
             <div class="trending-grid" id="trendingGrid"></div>
@@ -525,58 +513,27 @@
         const TRENDING_HOURS = 36;
         
         const NBA_PLAYERS = {
-            'LeBron James': 'LeBron James',
-            'LeBron': 'LeBron James',
-            'Stephen Curry': 'Stephen Curry',
-            'Steph Curry': 'Stephen Curry',
-            'Kevin Durant': 'Kevin Durant',
-            'KD': 'Kevin Durant',
-            'Giannis Antetokounmpo': 'Giannis Antetokounmpo',
-            'Giannis': 'Giannis Antetokounmpo',
-            'Nikola Jokic': 'Nikola Jokic',
-            'Jokic': 'Nikola Jokic',
-            'Joel Embiid': 'Joel Embiid',
-            'Embiid': 'Joel Embiid',
-            'Jayson Tatum': 'Jayson Tatum',
-            'Tatum': 'Jayson Tatum',
-            'Luka Doncic': 'Luka Doncic',
-            'Luka': 'Luka Doncic',
-            'James Harden': 'James Harden',
-            'Devin Booker': 'Devin Booker',
-            'Anthony Davis': 'Anthony Davis',
-            'AD': 'Anthony Davis',
-            'Jimmy Butler': 'Jimmy Butler',
-            'Damian Lillard': 'Damian Lillard',
-            'Dame': 'Damian Lillard',
-            'Donovan Mitchell': 'Donovan Mitchell',
-            'Trae Young': 'Trae Young',
-            'Ja Morant': 'Ja Morant',
-            'Anthony Edwards': 'Anthony Edwards',
-            'Ant Edwards': 'Anthony Edwards',
-            'Victor Wembanyama': 'Victor Wembanyama',
-            'Wembanyama': 'Victor Wembanyama',
-            'Wemby': 'Victor Wembanyama',
-            'Michael Jordan': 'Michael Jordan',
-            'MJ': 'Michael Jordan',
-            'Kobe Bryant': 'Kobe Bryant',
-            'Kobe': 'Kobe Bryant',
-            'Shaquille O\'Neal': 'Shaquille O\'Neal',
-            'Shaq': 'Shaquille O\'Neal'
+            'LeBron James': 'LeBron James', 'LeBron': 'LeBron James',
+            'Stephen Curry': 'Stephen Curry', 'Steph Curry': 'Stephen Curry',
+            'Kevin Durant': 'Kevin Durant', 'KD': 'Kevin Durant',
+            'Giannis Antetokounmpo': 'Giannis Antetokounmpo', 'Giannis': 'Giannis Antetokounmpo',
+            'Nikola Jokic': 'Nikola Jokic', 'Jokic': 'Nikola Jokic',
+            'Joel Embiid': 'Joel Embiid', 'Embiid': 'Joel Embiid',
+            'Jayson Tatum': 'Jayson Tatum', 'Luka Doncic': 'Luka Doncic', 'Luka': 'Luka Doncic',
+            'James Harden': 'James Harden', 'Devin Booker': 'Devin Booker',
+            'Anthony Davis': 'Anthony Davis', 'AD': 'Anthony Davis',
+            'Victor Wembanyama': 'Victor Wembanyama', 'Wembanyama': 'Victor Wembanyama', 'Wemby': 'Victor Wembanyama',
+            'Michael Jordan': 'Michael Jordan', 'MJ': 'Michael Jordan',
+            'Kobe Bryant': 'Kobe Bryant', 'Kobe': 'Kobe Bryant',
+            'Shaquille O\'Neal': 'Shaquille O\'Neal', 'Shaq': 'Shaquille O\'Neal'
         };
         
-        const NBA_TEAMS = ['Lakers', 'Warriors', 'Celtics', 'Heat', 'Bucks', 'Nuggets', 'Suns', 'Mavericks', 'Sixers', '76ers', 'Knicks', 'Clippers', 'Kings', 'Grizzlies', 'Cavaliers', 'Thunder', 'Timberwolves', 'Spurs', 'Bulls', 'Nets', 'Hawks', 'Blazers'];
-        const TOPICS = ['Trade', 'Playoff', 'Draft', 'MVP', 'Championship', 'Finals', 'Injury', 'Analysis', 'Recap', 'Preview', 'Breaking', 'Rumor', 'All-Star'];
+        const NBA_TEAMS = ['Lakers', 'Warriors', 'Celtics', 'Heat', 'Bucks', 'Nuggets', 'Suns', 'Mavericks', 'Sixers', '76ers', 'Knicks', 'Clippers', 'Kings'];
+        const TOPICS = ['Trade', 'Playoff', 'Draft', 'MVP', 'Championship', 'Finals', 'Injury', 'Analysis', 'Recap', 'Preview', 'Breaking'];
         
-        let allVideos = [];
-        let filteredVideos = [];
-        let displayedCount = ITEMS_PER_LOAD;
-        let currentFilter = 'all';
-        let currentSort = 'date';
-        let searchQuery = '';
-        let isLoading = false;
-        let channelFilter = null;
-        let players = {};
-        let currentPlayingId = null;
+        let allVideos = [], filteredVideos = [], displayedCount = ITEMS_PER_LOAD;
+        let currentFilter = 'all', currentSort = 'date', searchQuery = '', isLoading = false;
+        let channelFilter = null, players = {}, currentPlayingId = null;
         
         function formatNumber(num) {
             const n = parseInt(num);
@@ -595,6 +552,14 @@
                     hour: 'numeric', minute: '2-digit', hour12: true
                 });
             } catch { return 'Unknown'; }
+        }
+        
+        function parseDuration(duration) {
+            if (!duration) return 0;
+            const parts = duration.split(':').map(Number);
+            if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            if (parts.length === 2) return parts[0] * 60 + parts[1];
+            return 0;
         }
         
         function getAgeInHours(dateString) {
@@ -626,9 +591,7 @@
             Object.entries(NBA_PLAYERS).forEach(([key, fullName]) => {
                 const regex = new RegExp('\\b' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
                 const matches = text.match(regex);
-                if (matches) {
-                    mentions[fullName] = (mentions[fullName] || 0) + matches.length;
-                }
+                if (matches) mentions[fullName] = (mentions[fullName] || 0) + matches.length;
             });
             return mentions;
         }
@@ -641,37 +604,28 @@
         function calculateTrending() {
             const cutoffTime = new Date();
             cutoffTime.setHours(cutoffTime.getHours() - TRENDING_HOURS);
-            
             const recentVideos = allVideos.filter(v => new Date(v.publishedDate) >= cutoffTime);
             
-            const playerCounts = {};
-            const teamCounts = {};
-            const topicCounts = {};
+            const playerCounts = {}, teamCounts = {}, topicCounts = {};
             
             recentVideos.forEach(video => {
                 const fullText = `${video.title} ${video.description}`;
-                
-                const players = detectPlayers(fullText);
-                Object.keys(players).forEach(player => {
+                Object.keys(detectPlayers(fullText)).forEach(player => {
                     playerCounts[player] = (playerCounts[player] || 0) + 1;
                 });
-                
-                const teams = detectTeams(fullText);
-                teams.forEach(team => {
+                detectTeams(fullText).forEach(team => {
                     teamCounts[team] = (teamCounts[team] || 0) + 1;
                 });
-                
-                const topics = extractTopics(fullText);
-                topics.forEach(topic => {
+                extractTopics(fullText).forEach(topic => {
                     topicCounts[topic] = (topicCounts[topic] || 0) + 1;
                 });
             });
             
-            const topPlayers = Object.entries(playerCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-            const topTeams = Object.entries(teamCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-            const topTopics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-            
-            return { topPlayers, topTeams, topTopics };
+            return {
+                topPlayers: Object.entries(playerCounts).sort((a, b) => b[1] - a[1]).slice(0, 5),
+                topTeams: Object.entries(teamCounts).sort((a, b) => b[1] - a[1]).slice(0, 5),
+                topTopics: Object.entries(topicCounts).sort((a, b) => b[1] - a[1]).slice(0, 5)
+            };
         }
         
         function renderTrending() {
@@ -683,7 +637,6 @@
             }
             
             document.getElementById('trendingSection').style.display = 'block';
-            
             let html = '';
             
             if (topPlayers.length > 0) {
@@ -729,37 +682,19 @@
             const related = [];
             
             if (topics.length > 0) {
-                const mainTopic = topics[0];
-                const count = allVideos.filter(v => {
-                    const vText = `${v.title} ${v.description}`;
-                    return v.id !== video.id && extractTopics(vText).includes(mainTopic);
-                }).length;
-                if (count > 0) {
-                    related.push({ type: 'topic', label: `${count} more about #${mainTopic}`, filter: mainTopic });
-                }
+                const count = allVideos.filter(v => v.id !== video.id && extractTopics(`${v.title} ${v.description}`).includes(topics[0])).length;
+                if (count > 0) related.push({ label: `${count} more about #${topics[0]}`, filter: topics[0] });
             }
             
             if (teams.length > 0) {
-                const mainTeam = teams[0];
-                const count = allVideos.filter(v => {
-                    const vText = `${v.title} ${v.description}`;
-                    return v.id !== video.id && detectTeams(vText).includes(mainTeam);
-                }).length;
-                if (count > 0) {
-                    related.push({ type: 'team', label: `${count} more about ${mainTeam}`, filter: mainTeam });
-                }
+                const count = allVideos.filter(v => v.id !== video.id && detectTeams(`${v.title} ${v.description}`).includes(teams[0])).length;
+                if (count > 0) related.push({ label: `${count} more about ${teams[0]}`, filter: teams[0] });
             }
             
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
-            const channelRecent = allVideos.filter(v => {
-                return v.channelName === video.channelName && 
-                       v.id !== video.id && 
-                       new Date(v.publishedDate) >= weekAgo;
-            }).length;
-            if (channelRecent > 0) {
-                related.push({ type: 'channel', label: `${channelRecent} more from this channel this week`, filter: video.channelName });
-            }
+            const channelRecent = allVideos.filter(v => v.channelName === video.channelName && v.id !== video.id && new Date(v.publishedDate) >= weekAgo).length;
+            if (channelRecent > 0) related.push({ label: `${channelRecent} more from this channel this week`, filter: video.channelName });
             
             return related;
         }
@@ -775,15 +710,9 @@
             channelFilter = null;
             currentFilter = 'all';
             currentSort = 'date';
-            
             document.getElementById('searchBar').value = '';
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.filter === 'all');
-            });
-            document.querySelectorAll('.sort-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.sort === 'date');
-            });
-            
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === 'all'));
+            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.sort === 'date'));
             filterVideos();
         }
         
@@ -807,9 +736,7 @@
         }
         
         let YTReady = false;
-        function onYouTubeIframeAPIReady() {
-            YTReady = true;
-        }
+        function onYouTubeIframeAPIReady() { YTReady = true; }
         
         function playVideo(videoId, cardIndex, event) {
             event.preventDefault();
@@ -823,11 +750,7 @@
             if (!playerDiv) {
                 playerDiv = document.createElement('div');
                 playerDiv.id = playerId;
-                playerDiv.style.position = 'absolute';
-                playerDiv.style.top = '0';
-                playerDiv.style.left = '0';
-                playerDiv.style.width = '100%';
-                playerDiv.style.height = '100%';
+                playerDiv.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%';
                 thumbnail.appendChild(playerDiv);
             }
             
@@ -839,29 +762,22 @@
                     videoId: videoId,
                     playerVars: { 'autoplay': 1, 'modestbranding': 1, 'rel': 0 },
                     events: {
-                        'onStateChange': function(event) {
-                            if (event.data === YT.PlayerState.ENDED) {
-                                playNextVideo(cardIndex);
-                            }
-                        }
+                        'onStateChange': (e) => { if (e.data === YT.PlayerState.ENDED) playNextVideo(cardIndex); }
                     }
                 });
             } else if (!YTReady) {
-                playerDiv.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+                playerDiv.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}?autoplay=1" frameborder="0" allow="autoplay" allowfullscreen></iframe>`;
             }
         }
         
         function playNextVideo(currentIndex) {
             const nextIndex = currentIndex + 1;
             const cards = document.querySelectorAll('.video-card');
-            
             if (nextIndex < cards.length) {
                 cards[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
                 setTimeout(() => {
                     const video = filteredVideos[nextIndex];
-                    if (video) {
-                        playVideo(video.id, nextIndex, { preventDefault: () => {}, stopPropagation: () => {} });
-                    }
+                    if (video) playVideo(video.id, nextIndex, { preventDefault: () => {}, stopPropagation: () => {} });
                 }, 1000);
             }
         }
@@ -882,35 +798,27 @@
             if (video.subscriberCount !== 'N/A' && video.subscriberCount !== 'Hidden') {
                 statsHtml += `<div class="stat-item">👥 <strong>${formatNumber(video.subscriberCount)}</strong></div>`;
             }
-            if (video.likeCount !== '0') {
-                statsHtml += `<div class="stat-item">👍 <strong>${formatNumber(video.likeCount)}</strong></div>`;
-            }
-            if (video.commentCount !== '0') {
-                statsHtml += `<div class="stat-item">💬 <strong>${formatNumber(video.commentCount)}</strong></div>`;
-            }
+            if (video.likeCount !== '0') statsHtml += `<div class="stat-item">👍 <strong>${formatNumber(video.likeCount)}</strong></div>`;
+            if (video.commentCount !== '0') statsHtml += `<div class="stat-item">💬 <strong>${formatNumber(video.commentCount)}</strong></div>`;
             
             let relatedHtml = '';
             if (relatedContent.length > 0) {
-                relatedHtml = '<div class="related-content">📊 ';
-                relatedHtml += relatedContent.map(r => 
-                    `<span class="related-link" onclick="filterByName('${r.filter.replace(/'/g, "\\'")}')">${r.label}</span>`
-                ).join(' • ');
-                relatedHtml += '</div>';
+                relatedHtml = '<div class="related-content">📊 ' + 
+                    relatedContent.map(r => `<span class="related-link" onclick="filterByName('${r.filter.replace(/'/g, "\\'")}')">${r.label}</span>`).join(' • ') +
+                    '</div>';
             }
             
-            // Duration display
             const durationDisplay = video.duration ? `<span class="duration-display">⏱️ ${video.duration}</span>` : '';
             const durationBadge = video.duration ? `<div class="duration-badge">${video.duration}</div>` : '';
             
-            // Summary display with note if missing
             let summaryHtml = '';
             if (video.summary && video.summary.trim().length > 0) {
                 summaryHtml = `<div class="video-summary">
-                    <div class="summary-label">🤖 AI Summary (from video transcript):</div>
+                    <div class="summary-label">🤖 AI Summary (from transcript):</div>
                     ${video.summary}
                 </div>`;
             } else if (video.transcriptAvailable === 'Yes') {
-                summaryHtml = `<div class="no-summary-note">⏳ AI summary being generated from transcript...</div>`;
+                summaryHtml = `<div class="no-summary-note">⏳ AI summary pending (transcript available, will be generated next run)</div>`;
             }
             
             card.innerHTML = `
@@ -949,9 +857,7 @@
         function filterVideos() {
             let result = allVideos;
             
-            if (channelFilter) {
-                result = result.filter(v => v.channelName === channelFilter);
-            }
+            if (channelFilter) result = result.filter(v => v.channelName === channelFilter);
             
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
@@ -965,26 +871,16 @@
             }
             
             switch(currentFilter) {
-                case 'summaries': 
-                    result = result.filter(v => v.summary && v.summary.trim().length > 0); 
-                    break;
-                case 'trending': 
-                    result = result.filter(v => isTrending(v.viewCount)); 
-                    break;
-                case 'new': 
-                    result = result.filter(v => isNew(v.publishedDate)); 
-                    break;
+                case 'summaries': result = result.filter(v => v.summary && v.summary.trim().length > 0); break;
+                case 'trending': result = result.filter(v => isTrending(v.viewCount)); break;
+                case 'new': result = result.filter(v => isNew(v.publishedDate)); break;
             }
             
             switch(currentSort) {
-                case 'views': 
-                    result.sort((a, b) => parseInt(b.viewCount) - parseInt(a.viewCount)); 
-                    break;
-                case 'channel': 
-                    result.sort((a, b) => a.channelName.localeCompare(b.channelName)); 
-                    break;
-                default: 
-                    result.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+                case 'views': result.sort((a, b) => parseInt(b.viewCount) - parseInt(a.viewCount)); break;
+                case 'duration': result.sort((a, b) => parseDuration(b.duration) - parseDuration(a.duration)); break;
+                case 'channel': result.sort((a, b) => a.channelName.localeCompare(b.channelName)); break;
+                default: result.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
             }
             
             filteredVideos = result;
@@ -1055,6 +951,9 @@
                     summary: row['AI Summary'] || ''
                 })).filter(v => v.id);
                 
+                console.log('Loaded videos:', allVideos.length);
+                console.log('Sample video duration:', allVideos[0]?.duration);
+                
                 renderTrending();
                 filterVideos();
             } catch (error) {
@@ -1064,7 +963,6 @@
         
         document.addEventListener('DOMContentLoaded', () => {
             loadVideos();
-            
             document.getElementById('clearBtn').addEventListener('click', clearAllFilters);
             
             let searchTimeout;
