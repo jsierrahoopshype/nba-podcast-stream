@@ -35,16 +35,37 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
+        .search-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
         .search-bar {
-            width: 100%;
+            flex: 1;
             padding: 12px 20px;
             font-size: 16px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
-            margin-bottom: 15px;
         }
         
         .search-bar:focus { outline: none; border-color: #e74c3c; }
+        
+        .clear-btn {
+            padding: 12px 24px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .clear-btn:hover {
+            background: #7f8c8d;
+        }
         
         .filters, .sort-controls {
             display: flex;
@@ -64,7 +85,7 @@
         }
         
         .filter-btn:hover, .sort-btn:hover { border-color: #e74c3c; color: #e74c3c; }
-        .filter-btn.active { background: #e74c3c; color: white; border-color: #e74c3c; }
+        .filter-btn.active, .sort-btn.active { background: #e74c3c; color: white; border-color: #e74c3c; }
         
         .sort-label { font-weight: 600; color: #555; align-self: center; }
         
@@ -102,17 +123,16 @@
         .trending-badge { top: 10px; left: 10px; background: #f39c12; color: white; }
         .episode-badge { top: 45px; right: 10px; background: #9b59b6; color: white; }
         .engagement-badge { top: 80px; right: 10px; background: #27ae60; color: white; }
-        .views-per-day-badge { top: 115px; right: 10px; background: #3498db; color: white; }
         
         .duration-badge {
             position: absolute;
             bottom: 10px;
             right: 10px;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             color: white;
-            padding: 4px 8px;
+            padding: 5px 10px;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: bold;
             z-index: 15;
         }
@@ -198,6 +218,7 @@
             margin-bottom: 10px;
             font-size: 12px;
             color: #7f8c8d;
+            align-items: center;
         }
         
         .channel-name {
@@ -212,9 +233,13 @@
             text-decoration: underline; 
         }
         
-        .video-duration {
-            font-weight: 600;
-            color: #555;
+        .video-duration-display {
+            font-weight: 700;
+            color: #2c3e50;
+            background: #ecf0f1;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
         }
         
         .stats-row {
@@ -238,18 +263,20 @@
         }
         
         .topic-tag {
-            padding: 3px 8px;
+            padding: 4px 9px;
             background: #e3f2fd;
             color: #1976d2;
             border-radius: 12px;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
         }
         
         .topic-tag:hover {
-            background: #bbdefb;
+            background: #1976d2;
+            color: white;
+            transform: scale(1.05);
         }
         
         .player-mentions, .team-mentions {
@@ -280,6 +307,28 @@
             color: #003d82;
         }
         
+        .related-content {
+            margin-top: 10px;
+            padding: 8px;
+            background: #f0f8ff;
+            border-radius: 6px;
+            border-left: 3px solid #3498db;
+            font-size: 11px;
+            color: #555;
+        }
+        
+        .related-link {
+            color: #2980b9;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: underline;
+            margin-right: 8px;
+        }
+        
+        .related-link:hover {
+            color: #1c5a85;
+        }
+        
         .video-description {
             font-size: 12px;
             line-height: 1.5;
@@ -306,20 +355,14 @@
             border-left: 4px solid #3498db;
         }
         
-        .summary-label { font-weight: 600; color: #2980b9; margin-bottom: 5px; }
-        
-        .freshness-indicator {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: 600;
-            margin-left: 5px;
+        .summary-label { 
+            font-weight: 600; 
+            color: #2980b9; 
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        
-        .fresh { background: #d4edda; color: #155724; }
-        .recent { background: #fff3cd; color: #856404; }
-        .older { background: #f8d7da; color: #721c24; }
         
         .loading-spinner, .loading, .error, .no-videos {
             text-align: center;
@@ -347,12 +390,15 @@
         </div>
 
         <div class="controls">
-            <input 
-                type="text" 
-                class="search-bar" 
-                id="searchBar" 
-                placeholder="🔍 Search title, channel, description, topics, players, teams..."
-            >
+            <div class="search-row">
+                <input 
+                    type="text" 
+                    class="search-bar" 
+                    id="searchBar" 
+                    placeholder="🔍 Search title, channel, description, topics, players, teams..."
+                >
+                <button class="clear-btn" id="clearBtn">✕ Clear All</button>
+            </div>
             
             <div class="filters">
                 <button class="filter-btn active" data-filter="all">All Episodes</button>
@@ -384,56 +430,56 @@
         const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRr8GiFRfKLquD0j49JqKIL11tnulG7--WeJsvP3nqFc72EeQM3RsQjnWeXlgcVoR2RL5y7oqYbfpSs/pub?gid=162816128&single=true&output=csv';
         const ITEMS_PER_LOAD = 15;
         
-        // More specific NBA player names to avoid false positives
+        // IMPROVED: Only match unambiguous player names or full names
         const NBA_PLAYERS = {
+            // Full names (always safe to match)
             'LeBron James': 'LeBron James',
-            'LeBron': 'LeBron James',
             'Stephen Curry': 'Stephen Curry',
             'Steph Curry': 'Stephen Curry',
-            'Curry': 'Stephen Curry',
             'Kevin Durant': 'Kevin Durant',
-            'KD': 'Kevin Durant',
-            'Durant': 'Kevin Durant',
             'Giannis Antetokounmpo': 'Giannis Antetokounmpo',
-            'Giannis': 'Giannis Antetokounmpo',
             'Nikola Jokic': 'Nikola Jokic',
-            'Jokic': 'Nikola Jokic',
             'Joel Embiid': 'Joel Embiid',
-            'Embiid': 'Joel Embiid',
             'Jayson Tatum': 'Jayson Tatum',
-            'Tatum': 'Jayson Tatum',
             'Luka Doncic': 'Luka Doncic',
-            'Luka': 'Luka Doncic',
             'James Harden': 'James Harden',
-            'Harden': 'James Harden',
             'Devin Booker': 'Devin Booker',
-            'Booker': 'Devin Booker',
             'Anthony Davis': 'Anthony Davis',
-            'AD': 'Anthony Davis',
             'Jimmy Butler': 'Jimmy Butler',
-            'Butler': 'Jimmy Butler',
             'Damian Lillard': 'Damian Lillard',
-            'Dame': 'Damian Lillard',
             'Donovan Mitchell': 'Donovan Mitchell',
-            'Mitchell': 'Donovan Mitchell',
             'Trae Young': 'Trae Young',
             'Ja Morant': 'Ja Morant',
-            'Morant': 'Ja Morant',
             'Anthony Edwards': 'Anthony Edwards',
-            'Ant Edwards': 'Anthony Edwards',
             'Victor Wembanyama': 'Victor Wembanyama',
+            'Michael Jordan': 'Michael Jordan',
+            'Kobe Bryant': 'Kobe Bryant',
+            'Shaquille O\'Neal': 'Shaquille O\'Neal',
+            
+            // Unique first names (safe)
+            'LeBron': 'LeBron James',
+            'Giannis': 'Giannis Antetokounmpo',
+            'Jokic': 'Nikola Jokic',
+            'Embiid': 'Joel Embiid',
+            'Luka': 'Luka Doncic',
             'Wembanyama': 'Victor Wembanyama',
             'Wemby': 'Victor Wembanyama',
-            'Shaquille O\'Neal': 'Shaquille O\'Neal',
             'Shaq': 'Shaquille O\'Neal',
-            'Michael Jordan': 'Michael Jordan',
-            'MJ': 'Michael Jordan',
-            'Kobe Bryant': 'Kobe Bryant',
-            'Kobe': 'Kobe Bryant'
+            'Kobe': 'Kobe Bryant',
+            
+            // Common nicknames (safe)
+            'KD': 'Kevin Durant',
+            'AD': 'Anthony Davis',
+            'Dame': 'Damian Lillard',
+            'Ant Edwards': 'Anthony Edwards',
+            'MJ': 'Michael Jordan'
+            
+            // REMOVED ambiguous names like "Curry", "Durant", "Harden", "Butler", "Mitchell", "Jordan"
+            // These will only match if the full name appears
         };
         
-        const NBA_TEAMS = ['Lakers', 'Warriors', 'Celtics', 'Heat', 'Bucks', 'Nuggets', 'Suns', 'Mavericks', 'Sixers', '76ers', 'Knicks', 'Clippers', 'Kings', 'Grizzlies', 'Cavaliers', 'Thunder', 'Timberwolves', 'Spurs'];
-        const TOPICS = ['Trade', 'Playoff', 'Draft', 'MVP', 'Championship', 'Finals', 'Injury', 'Analysis', 'Recap', 'Preview', 'Breaking', 'Rumor'];
+        const NBA_TEAMS = ['Lakers', 'Warriors', 'Celtics', 'Heat', 'Bucks', 'Nuggets', 'Suns', 'Mavericks', 'Sixers', '76ers', 'Knicks', 'Clippers', 'Kings', 'Grizzlies', 'Cavaliers', 'Thunder', 'Timberwolves', 'Spurs', 'Bulls', 'Nets', 'Hawks', 'Blazers'];
+        const TOPICS = ['Trade', 'Playoff', 'Draft', 'MVP', 'Championship', 'Finals', 'Injury', 'Analysis', 'Recap', 'Preview', 'Breaking', 'Rumor', 'All-Star'];
         
         let allVideos = [];
         let filteredVideos = [];
@@ -443,7 +489,7 @@
         let searchQuery = '';
         let isLoading = false;
         let channelFilter = null;
-        let players = {}; // YouTube player instances
+        let players = {};
         let currentPlayingId = null;
         
         function formatNumber(num) {
@@ -465,18 +511,14 @@
             } catch { return 'Unknown'; }
         }
         
-        function parseDuration(duration) {
-            if (!duration) return 0;
-            const parts = duration.split(':').map(Number);
-            if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-            if (parts.length === 2) return parts[0] * 60 + parts[1];
-            return 0;
-        }
-        
         function getAgeInHours(dateString) {
             try {
                 return (new Date() - new Date(dateString)) / (1000 * 60 * 60);
             } catch { return 999; }
+        }
+        
+        function getAgeInDays(dateString) {
+            return getAgeInHours(dateString) / 24;
         }
         
         function isNew(dateString) { return getAgeInHours(dateString) < 24; }
@@ -486,20 +528,6 @@
             const views = parseInt(video.viewCount) || 0;
             const likes = parseInt(video.likeCount) || 0;
             return views > 0 ? (likes / views) * 100 : 0;
-        }
-        
-        function calculateViewsPerDay(video) {
-            const views = parseInt(video.viewCount) || 0;
-            const ageHours = getAgeInHours(video.publishedDate);
-            const ageDays = Math.max(ageHours / 24, 0.1); // Minimum 0.1 days
-            return Math.round(views / ageDays);
-        }
-        
-        function getFreshnessIndicator(dateString) {
-            const hours = getAgeInHours(dateString);
-            if (hours < 6) return '<span class="freshness-indicator fresh">🔴 LIVE FRESH</span>';
-            if (hours < 24) return '<span class="freshness-indicator recent">🟡 NEW</span>';
-            return '';
         }
         
         function extractEpisode(title) {
@@ -519,27 +547,13 @@
         function detectPlayers(text) {
             if (!text) return {};
             const mentions = {};
-            const textLower = text.toLowerCase();
             
-            // First pass - look for full names
+            // Only match full names and unique identifiers
             Object.entries(NBA_PLAYERS).forEach(([key, fullName]) => {
-                if (key.includes(' ')) { // Full name like "LeBron James"
-                    const regex = new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                    const matches = text.match(regex);
-                    if (matches) {
-                        mentions[fullName] = (mentions[fullName] || 0) + matches.length;
-                    }
-                }
-            });
-            
-            // Second pass - look for short names only if full name not found
-            Object.entries(NBA_PLAYERS).forEach(([key, fullName]) => {
-                if (!key.includes(' ') && !mentions[fullName]) { // Short name like "LeBron"
-                    const regex = new RegExp('\\b' + key + '\\b', 'gi');
-                    const matches = text.match(regex);
-                    if (matches) {
-                        mentions[fullName] = (mentions[fullName] || 0) + matches.length;
-                    }
+                const regex = new RegExp('\\b' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+                const matches = text.match(regex);
+                if (matches) {
+                    mentions[fullName] = (mentions[fullName] || 0) + matches.length;
                 }
             });
             
@@ -551,6 +565,71 @@
             return [...new Set(NBA_TEAMS.filter(team => text.toLowerCase().includes(team.toLowerCase())))];
         }
         
+        function getRelatedContent(video) {
+            const fullText = `${video.title} ${video.description}`;
+            const topics = extractTopics(fullText);
+            const teams = detectTeams(fullText);
+            const related = [];
+            
+            // Count videos with same topics
+            if (topics.length > 0) {
+                const mainTopic = topics[0];
+                const count = allVideos.filter(v => {
+                    const vText = `${v.title} ${v.description}`;
+                    return v.id !== video.id && extractTopics(vText).includes(mainTopic);
+                }).length;
+                if (count > 0) {
+                    related.push({ type: 'topic', label: `${count} more about #${mainTopic}`, filter: mainTopic });
+                }
+            }
+            
+            // Count videos about same teams
+            if (teams.length > 0) {
+                const mainTeam = teams[0];
+                const count = allVideos.filter(v => {
+                    const vText = `${v.title} ${v.description}`;
+                    return v.id !== video.id && detectTeams(vText).includes(mainTeam);
+                }).length;
+                if (count > 0) {
+                    related.push({ type: 'team', label: `${count} more about ${mainTeam}`, filter: mainTeam });
+                }
+            }
+            
+            // Count recent videos from same channel
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            const channelRecent = allVideos.filter(v => {
+                return v.channelName === video.channelName && 
+                       v.id !== video.id && 
+                       new Date(v.publishedDate) >= weekAgo;
+            }).length;
+            if (channelRecent > 0) {
+                related.push({ type: 'channel', label: `${channelRecent} more from this channel this week`, filter: video.channelName });
+            }
+            
+            return related;
+        }
+        
+        function clearAllFilters() {
+            // Reset all state
+            searchQuery = '';
+            channelFilter = null;
+            currentFilter = 'all';
+            currentSort = 'date';
+            
+            // Reset UI
+            document.getElementById('searchBar').value = '';
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === 'all');
+            });
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.sort === 'date');
+            });
+            
+            // Re-filter
+            filterVideos();
+        }
+        
         function filterByChannel(channelName) {
             channelFilter = channelFilter === channelName ? null : channelName;
             filterVideos();
@@ -559,16 +638,18 @@
         function filterByName(name) {
             searchQuery = name;
             document.getElementById('searchBar').value = name;
+            channelFilter = null;
             filterVideos();
         }
         
         function filterByTopic(topic) {
             searchQuery = topic;
             document.getElementById('searchBar').value = topic;
+            channelFilter = null;
             filterVideos();
         }
         
-        // YouTube Player API Ready
+        // YouTube Player API
         let YTReady = false;
         function onYouTubeIframeAPIReady() {
             YTReady = true;
@@ -582,7 +663,6 @@
             const thumbnail = card.querySelector('.video-thumbnail');
             const playerId = `player-${videoId}`;
             
-            // Remove existing player div if any
             let playerDiv = thumbnail.querySelector(`#${playerId}`);
             if (!playerDiv) {
                 playerDiv = document.createElement('div');
@@ -598,7 +678,6 @@
             thumbnail.classList.add('playing');
             currentPlayingId = videoId;
             
-            // Create YouTube player
             if (YTReady && !players[videoId]) {
                 players[videoId] = new YT.Player(playerId, {
                     videoId: videoId,
@@ -616,7 +695,6 @@
                     }
                 });
             } else if (!YTReady) {
-                // Fallback to iframe if API not ready
                 playerDiv.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
             }
         }
@@ -626,15 +704,11 @@
             const cards = document.querySelectorAll('.video-card');
             
             if (nextIndex < cards.length) {
-                // Scroll to next card
                 cards[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
                 
-                // Play after short delay
                 setTimeout(() => {
-                    const playButton = cards[nextIndex].querySelector('.video-thumbnail');
-                    if (playButton) {
-                        // Simulate click on thumbnail
-                        const video = filteredVideos[nextIndex];
+                    const video = filteredVideos[nextIndex];
+                    if (video) {
                         playVideo(video.id, nextIndex, { preventDefault: () => {}, stopPropagation: () => {} });
                     }
                 }, 1000);
@@ -643,20 +717,20 @@
         
         function createVideoCard(video, index) {
             const engagement = calculateEngagement(video);
-            const viewsPerDay = calculateViewsPerDay(video);
             const episodeNum = extractEpisode(video.title);
             
             const fullText = `${video.title} ${video.description}`;
             const topics = extractTopics(fullText);
             const playerMentions = detectPlayers(fullText);
             const teams = detectTeams(fullText);
+            const relatedContent = getRelatedContent(video);
             
             const topPlayers = Object.entries(playerMentions).sort((a, b) => b[1] - a[1]).slice(0, 3);
             
             const card = document.createElement('div');
             card.className = 'video-card';
             
-            // Build stats row - hide subscribers if N/A
+            // Build stats row - hide N/A subscribers
             let statsHtml = `<div class="stat-item">👁️ <strong>${formatNumber(video.viewCount)}</strong></div>`;
             if (video.subscriberCount !== 'N/A' && video.subscriberCount !== 'Hidden') {
                 statsHtml += `<div class="stat-item">👥 <strong>${formatNumber(video.subscriberCount)}</strong></div>`;
@@ -668,16 +742,25 @@
                 statsHtml += `<div class="stat-item">💬 <strong>${formatNumber(video.commentCount)}</strong></div>`;
             }
             
+            // Related content HTML
+            let relatedHtml = '';
+            if (relatedContent.length > 0) {
+                relatedHtml = '<div class="related-content">📊 ';
+                relatedHtml += relatedContent.map(r => 
+                    `<span class="related-link" onclick="filterByName('${r.filter.replace(/'/g, "\\'")}')">${r.label}</span>`
+                ).join(' • ');
+                relatedHtml += '</div>';
+            }
+            
             card.innerHTML = `
                 ${isNew(video.publishedDate) ? '<div class="badge new-badge">NEW</div>' : ''}
                 ${isTrending(video.viewCount) ? '<div class="badge trending-badge">🔥 TRENDING</div>' : ''}
                 ${episodeNum ? `<div class="badge episode-badge">${episodeNum}</div>` : ''}
                 ${engagement > 5 ? `<div class="badge engagement-badge">⭐ ${engagement.toFixed(1)}%</div>` : ''}
-                ${viewsPerDay > 10000 ? `<div class="badge views-per-day-badge">🚀 ${formatNumber(viewsPerDay)}/day</div>` : ''}
                 
                 <div class="video-thumbnail" onclick="playVideo('${video.id}', ${index}, event)">
                     <img src="${video.thumbnail}" alt="${video.title.replace(/"/g, '&quot;')}">
-                    ${video.duration ? `<div class="duration-badge">⏱️ ${video.duration}</div>` : ''}
+                    ${video.duration ? `<div class="duration-badge">${video.duration}</div>` : ''}
                     <div class="play-button"></div>
                 </div>
                 
@@ -688,17 +771,17 @@
                     <div class="video-meta">
                         <span class="channel-name" onclick="filterByChannel('${video.channelName.replace(/'/g, "\\'")}')">${video.channelName}</span>
                         <span>📅 ${formatDate(video.publishedDate)}</span>
-                        ${getFreshnessIndicator(video.publishedDate)}
+                        ${video.duration ? `<span class="video-duration-display">⏱️ ${video.duration}</span>` : ''}
                     </div>
-                    ${video.duration ? `<div class="video-duration">⏱️ Duration: <strong>${video.duration}</strong></div>` : ''}
                     <div class="stats-row">
                         ${statsHtml}
                     </div>
                     ${topics.length > 0 ? `<div class="topic-tags">${topics.map(t => `<span class="topic-tag" onclick="filterByTopic('${t}')">#${t}</span>`).join('')}</div>` : ''}
                     ${topPlayers.length > 0 ? `<div class="player-mentions">🏀 ${topPlayers.map(([name, count]) => `<span class="clickable-name" onclick="filterByName('${name.replace(/'/g, "\\'")}')">${name}</span> (${count})`).join(', ')}</div>` : ''}
                     ${teams.length > 0 ? `<div class="team-mentions">🏆 ${teams.slice(0, 3).map(team => `<span class="clickable-name" onclick="filterByName('${team}')">${team}</span>`).join(', ')}</div>` : ''}
+                    ${relatedHtml}
                     ${video.description ? `<div class="video-description">${video.description.substring(0, 200)}...</div>` : ''}
-                    ${video.summary ? `<div class="video-summary"><div class="summary-label">🤖 AI Summary:</div>${video.summary}</div>` : ''}
+                    ${video.summary ? `<div class="video-summary"><div class="summary-label">🤖 AI Summary (from transcript):</div>${video.summary}</div>` : ''}
                 </div>
             `;
             
@@ -823,6 +906,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadVideos();
             
+            // Clear button
+            document.getElementById('clearBtn').addEventListener('click', clearAllFilters);
+            
+            // Search
             let searchTimeout;
             document.getElementById('searchBar').addEventListener('input', (e) => {
                 clearTimeout(searchTimeout);
@@ -833,6 +920,7 @@
                 }, 300);
             });
             
+            // Filters
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -842,6 +930,7 @@
                 });
             });
             
+            // Sort
             document.querySelectorAll('.sort-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
