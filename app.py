@@ -156,19 +156,26 @@ class YouTubeFetcher:
     def get_channel_videos(self, channel_id):
         """Fetch recent videos from a channel"""
         try:
+            logger.info(f"DEBUG: Fetching channel info for {channel_id}")
+            
             # Get uploads playlist
             channel_response = self.youtube.channels().list(
                 part='contentDetails,snippet,statistics',
                 id=channel_id
             ).execute()
             
+            logger.info(f"DEBUG: Channel response received, items count: {len(channel_response.get('items', []))}")
+            
             if not channel_response.get('items'):
+                logger.warning(f"DEBUG: No channel found for ID {channel_id}")
                 return []
             
             channel_info = channel_response['items'][0]
             uploads_playlist = channel_info['contentDetails']['relatedPlaylists']['uploads']
             channel_name = channel_info['snippet']['title']
             subscriber_count = channel_info['statistics'].get('subscriberCount', 'Hidden')
+            
+            logger.info(f"DEBUG: Channel '{channel_name}' found, uploads playlist: {uploads_playlist}")
             
             # Get videos from uploads playlist
             playlist_response = self.youtube.playlistItems().list(
@@ -177,16 +184,23 @@ class YouTubeFetcher:
                 maxResults=MAX_RESULTS_PER_CHANNEL
             ).execute()
             
+            logger.info(f"DEBUG: Playlist response received, items count: {len(playlist_response.get('items', []))}")
+            
             video_ids = [item['contentDetails']['videoId'] for item in playlist_response.get('items', [])]
             
             if not video_ids:
+                logger.warning(f"DEBUG: No videos found in playlist {uploads_playlist}")
                 return []
+            
+            logger.info(f"DEBUG: Found video IDs: {video_ids}")
             
             # Get detailed video info INCLUDING contentDetails for duration
             videos_response = self.youtube.videos().list(
                 part='snippet,statistics,contentDetails',
                 id=','.join(video_ids)
             ).execute()
+            
+            logger.info(f"DEBUG: Videos response received, items count: {len(videos_response.get('items', []))}")
             
             videos = []
             for item in videos_response.get('items', []):
@@ -209,11 +223,16 @@ class YouTubeFetcher:
                     'comment_count': item['statistics'].get('commentCount', '0')
                 }
                 videos.append(video)
+                logger.info(f"DEBUG: Added video '{video['title'][:50]}...' published at {video['published_at']}")
             
+            logger.info(f"DEBUG: Returning {len(videos)} videos for channel {channel_id}")
             return videos
             
         except Exception as e:
-            logger.error(f"Error fetching videos for channel {channel_id}: {str(e)}")
+            logger.error(f"DEBUG: ERROR fetching videos for channel {channel_id}: {str(e)}")
+            logger.error(f"DEBUG: Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"DEBUG: Traceback: {traceback.format_exc()}")
             return []
 
 class GoogleSheetsManager:
