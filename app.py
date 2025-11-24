@@ -227,6 +227,7 @@ class GoogleSheetsManager:
         self.client = gspread.authorize(creds)
         self.sheet = None
         self.headers = []
+        self.duration_col_index = None
     
     def get_or_create_sheet(self):
         """Get existing sheet or create new one"""
@@ -238,30 +239,17 @@ class GoogleSheetsManager:
             self.headers = self.sheet.row_values(1)
             logger.info(f"Current headers: {self.headers}")
             
-            # Check if Duration column exists, add if missing
-            if 'Duration' not in self.headers:
-                logger.info("Duration column missing, adding it...")
-                # Find position after Subscriber Count
-                try:
-                    sub_count_idx = self.headers.index('Subscriber Count')
-                    duration_col = sub_count_idx + 2  # Column index (1-based)
-                    
-                    # Insert column
-                    self.sheet.insert_cols([[]], duration_col)
-                    
-                    # Add header
-                    self.sheet.update_cell(1, duration_col, 'Duration')
-                    
-                    # Refresh headers
-                    self.headers = self.sheet.row_values(1)
-                    logger.info(f"Added Duration column at position {duration_col}")
-                except ValueError:
-                    # If Subscriber Count not found, just append
-                    logger.warning("Subscriber Count column not found, appending Duration")
-                    duration_col = len(self.headers) + 1
-                    self.sheet.update_cell(1, duration_col, 'Duration')
-                    self.headers = self.sheet.row_values(1)
-                    
+            # Check if Duration column exists
+            if 'Duration' in self.headers:
+                self.duration_col_index = self.headers.index('Duration') + 1
+                logger.info(f"Duration column found at index {self.duration_col_index}")
+            else:
+                # Add Duration header at the end
+                self.duration_col_index = len(self.headers) + 1
+                logger.info(f"Duration column missing, adding at position {self.duration_col_index}")
+                self.sheet.update_cell(1, self.duration_col_index, 'Duration')
+                self.headers.append('Duration')
+                
         except gspread.SpreadsheetNotFound:
             # Create new sheet with all columns
             spreadsheet = self.client.create(SHEET_NAME)
@@ -276,6 +264,7 @@ class GoogleSheetsManager:
                 'Transcript Available', 'AI Summary', 'Last Updated'
             ]
             self.sheet.append_row(self.headers)
+            self.duration_col_index = self.headers.index('Duration') + 1
             
             # Share with anyone with link
             spreadsheet.share('', perm_type='anyone', role='reader')
@@ -287,6 +276,13 @@ class GoogleSheetsManager:
             return set(video_ids)
         except:
             return set()
+    
+    def get_column_index(self, column_name):
+        """Get column index by name"""
+        try:
+            return self.headers.index(column_name) + 1
+        except ValueError:
+            return None
     
     def add_video(self, video, has_transcript=False, summary=""):
         """Add new video to sheet"""
@@ -324,16 +320,23 @@ class GoogleSheetsManager:
             elif header == 'Last Updated':
                 row.append(datetime.utcnow().isoformat())
             else:
-                row.append('')  # Unknown column
+                row.append('')
         
         self.sheet.append_row(row)
     
     def update_video(self, row_index, video, has_transcript=False, summary=""):
         """Update existing video row"""
+        # Update Duration specifically
+        if self.duration_col_index:
+            try:
+                self.sheet.update_cell(row_index, self.duration_col_index, video['duration'])
+            except Exception as e:
+                logger.error(f"Error updating duration: {e}")
+        
+        # Update other fields
         updates = {
             'View Count': video['view_count'],
             'Subscriber Count': video['subscriber_count'],
-            'Duration': video['duration'],
             'Like Count': video['like_count'],
             'Comment Count': video['comment_count'],
             'Transcript Available': 'Yes' if has_transcript else 'No',
@@ -341,14 +344,13 @@ class GoogleSheetsManager:
             'Last Updated': datetime.utcnow().isoformat()
         }
         
-        # Update specific cells
         for field, value in updates.items():
-            try:
-                col_index = self.headers.index(field) + 1
-                self.sheet.update_cell(row_index, col_index, value)
-            except ValueError:
-                logger.warning(f"Column '{field}' not found in sheet")
-                continue
+            col_index = self.get_column_index(field)
+            if col_index:
+                try:
+                    self.sheet.update_cell(row_index, col_index, value)
+                except Exception as e:
+                    logger.error(f"Error updating {field}: {e}")
 
 class PodcastStreamManager:
     def __init__(self):
@@ -361,55 +363,62 @@ class PodcastStreamManager:
         """Main execution flow"""
         logger.info("Starting NBA Podcast Stream update...")
         
-        # Initialize sheet
-        self.sheets.get_or_create_sheet()
-        existing_ids = self.sheets.get_existing_video_ids()
-        
-        # Collect videos from all channels
-        all_videos = []
-        for channel_id in CHANNELS:
-            videos = self.youtube.get_channel_videos(channel_id)
-            all_videos.extend(videos)
-            logger.info(f"Fetched {len(videos)} videos from channel {channel_id}")
-        
-        # Sort by published date (newest first)
-        all_videos.sort(key=lambda x: x['published_at'], reverse=True)
-        
-        # Process videos in batches
-        processed = 0
-        for video in all_videos:
-            if processed >= BATCH_SIZE:
-                logger.info(f"Reached batch limit of {BATCH_SIZE}")
-                break
+        try:
+            # Initialize sheet
+            self.sheets.get_or_create_sheet()
+            existing_ids = self.sheets.get_existing_video_ids()
             
-            # Get transcript
-            transcript = self.transcript_fetcher.get_transcript(video['id'])
-            has_transcript = transcript is not None and len(transcript) > 50
+            # Collect videos from all channels
+            all_videos = []
+            for channel_id in CHANNELS:
+                videos = self.youtube.get_channel_videos(channel_id)
+                all_videos.extend(videos)
+                logger.info(f"Fetched {len(videos)} videos from channel {channel_id}")
             
-            # Generate summary if transcript available
-            summary = ""
-            if has_transcript:
-                summary = self.summary_generator.generate_summary(
-                    video['title'],
-                    transcript
-                )
+            # Sort by published date (newest first)
+            all_videos.sort(key=lambda x: x['published_at'], reverse=True)
             
-            # Add or update video
-            if video['id'] not in existing_ids:
-                self.sheets.add_video(video, has_transcript, summary)
-                logger.info(f"Added new video: {video['title'][:50]}... (Duration: {video['duration']})")
-                processed += 1
-            else:
-                # Update existing (stats may have changed)
-                all_data = self.sheets.sheet.get_all_values()
-                for idx, row in enumerate(all_data[1:], start=2):
-                    if row[0] == video['id']:
-                        self.sheets.update_video(idx, video, has_transcript, summary)
-                        logger.info(f"Updated video: {video['title'][:50]}... (Duration: {video['duration']})")
-                        processed += 1
-                        break
-        
-        logger.info(f"Completed! Processed {processed} videos")
+            # Process videos in batches
+            processed = 0
+            for video in all_videos:
+                if processed >= BATCH_SIZE:
+                    logger.info(f"Reached batch limit of {BATCH_SIZE}")
+                    break
+                
+                # Get transcript
+                transcript = self.transcript_fetcher.get_transcript(video['id'])
+                has_transcript = transcript is not None and len(transcript) > 50
+                
+                # Generate summary if transcript available
+                summary = ""
+                if has_transcript:
+                    summary = self.summary_generator.generate_summary(
+                        video['title'],
+                        transcript
+                    )
+                
+                # Add or update video
+                if video['id'] not in existing_ids:
+                    self.sheets.add_video(video, has_transcript, summary)
+                    logger.info(f"Added new video: {video['title'][:50]}... (Duration: {video['duration']})")
+                    processed += 1
+                else:
+                    # Update existing
+                    all_data = self.sheets.sheet.get_all_values()
+                    for idx, row in enumerate(all_data[1:], start=2):
+                        if row[0] == video['id']:
+                            self.sheets.update_video(idx, video, has_transcript, summary)
+                            logger.info(f"Updated video: {video['title'][:50]}... (Duration: {video['duration']})")
+                            processed += 1
+                            break
+            
+            logger.info(f"Completed! Processed {processed} videos")
+            
+        except Exception as e:
+            logger.error(f"Fatal error: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            raise
 
 def handler(event=None, context=None):
     """Handler for serverless deployment"""
