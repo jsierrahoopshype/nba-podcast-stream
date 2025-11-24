@@ -204,7 +204,7 @@ class YouTubeFetcher:
                     'description': item['snippet'].get('description', ''),
                     'view_count': item['statistics'].get('viewCount', '0'),
                     'subscriber_count': subscriber_count,
-                    'duration': duration_formatted,  # NEW: Add duration
+                    'duration': duration_formatted,
                     'like_count': item['statistics'].get('likeCount', '0'),
                     'comment_count': item['statistics'].get('commentCount', '0')
                 }
@@ -226,26 +226,56 @@ class GoogleSheetsManager:
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         self.client = gspread.authorize(creds)
         self.sheet = None
+        self.headers = []
     
     def get_or_create_sheet(self):
         """Get existing sheet or create new one"""
         try:
             self.sheet = self.client.open(SHEET_NAME).sheet1
             logger.info(f"Opened existing sheet: {SHEET_NAME}")
+            
+            # Get current headers
+            self.headers = self.sheet.row_values(1)
+            logger.info(f"Current headers: {self.headers}")
+            
+            # Check if Duration column exists, add if missing
+            if 'Duration' not in self.headers:
+                logger.info("Duration column missing, adding it...")
+                # Find position after Subscriber Count
+                try:
+                    sub_count_idx = self.headers.index('Subscriber Count')
+                    duration_col = sub_count_idx + 2  # Column index (1-based)
+                    
+                    # Insert column
+                    self.sheet.insert_cols([[]], duration_col)
+                    
+                    # Add header
+                    self.sheet.update_cell(1, duration_col, 'Duration')
+                    
+                    # Refresh headers
+                    self.headers = self.sheet.row_values(1)
+                    logger.info(f"Added Duration column at position {duration_col}")
+                except ValueError:
+                    # If Subscriber Count not found, just append
+                    logger.warning("Subscriber Count column not found, appending Duration")
+                    duration_col = len(self.headers) + 1
+                    self.sheet.update_cell(1, duration_col, 'Duration')
+                    self.headers = self.sheet.row_values(1)
+                    
         except gspread.SpreadsheetNotFound:
+            # Create new sheet with all columns
             spreadsheet = self.client.create(SHEET_NAME)
             self.sheet = spreadsheet.sheet1
             logger.info(f"Created new sheet: {SHEET_NAME}")
             
-            # Set headers with Duration column
-            headers = [
+            self.headers = [
                 'Video ID', 'Title', 'Channel Name', 'Channel ID', 
                 'Published Date', 'Thumbnail URL', 'Description', 
-                'View Count', 'Subscriber Count', 'Duration',  # Duration is column J
+                'View Count', 'Subscriber Count', 'Duration',
                 'Like Count', 'Comment Count', 
                 'Transcript Available', 'AI Summary', 'Last Updated'
             ]
-            self.sheet.append_row(headers)
+            self.sheet.append_row(self.headers)
             
             # Share with anyone with link
             spreadsheet.share('', perm_type='anyone', role='reader')
@@ -260,23 +290,42 @@ class GoogleSheetsManager:
     
     def add_video(self, video, has_transcript=False, summary=""):
         """Add new video to sheet"""
-        row = [
-            video['id'],
-            video['title'],
-            video['channel_name'],
-            video['channel_id'],
-            video['published_at'],
-            video['thumbnail'],
-            video['description'][:500],  # Limit description length
-            video['view_count'],
-            video['subscriber_count'],
-            video['duration'],  # NEW: Duration column
-            video['like_count'],
-            video['comment_count'],
-            'Yes' if has_transcript else 'No',
-            summary,
-            datetime.utcnow().isoformat()
-        ]
+        # Build row based on current headers
+        row = []
+        for header in self.headers:
+            if header == 'Video ID':
+                row.append(video['id'])
+            elif header == 'Title':
+                row.append(video['title'])
+            elif header == 'Channel Name':
+                row.append(video['channel_name'])
+            elif header == 'Channel ID':
+                row.append(video['channel_id'])
+            elif header == 'Published Date':
+                row.append(video['published_at'])
+            elif header == 'Thumbnail URL':
+                row.append(video['thumbnail'])
+            elif header == 'Description':
+                row.append(video['description'][:500])
+            elif header == 'View Count':
+                row.append(video['view_count'])
+            elif header == 'Subscriber Count':
+                row.append(video['subscriber_count'])
+            elif header == 'Duration':
+                row.append(video['duration'])
+            elif header == 'Like Count':
+                row.append(video['like_count'])
+            elif header == 'Comment Count':
+                row.append(video['comment_count'])
+            elif header == 'Transcript Available':
+                row.append('Yes' if has_transcript else 'No')
+            elif header == 'AI Summary':
+                row.append(summary)
+            elif header == 'Last Updated':
+                row.append(datetime.utcnow().isoformat())
+            else:
+                row.append('')  # Unknown column
+        
         self.sheet.append_row(row)
     
     def update_video(self, row_index, video, has_transcript=False, summary=""):
@@ -284,7 +333,7 @@ class GoogleSheetsManager:
         updates = {
             'View Count': video['view_count'],
             'Subscriber Count': video['subscriber_count'],
-            'Duration': video['duration'],  # Update duration too
+            'Duration': video['duration'],
             'Like Count': video['like_count'],
             'Comment Count': video['comment_count'],
             'Transcript Available': 'Yes' if has_transcript else 'No',
@@ -293,12 +342,12 @@ class GoogleSheetsManager:
         }
         
         # Update specific cells
-        headers = self.sheet.row_values(1)
         for field, value in updates.items():
             try:
-                col_index = headers.index(field) + 1
+                col_index = self.headers.index(field) + 1
                 self.sheet.update_cell(row_index, col_index, value)
             except ValueError:
+                logger.warning(f"Column '{field}' not found in sheet")
                 continue
 
 class PodcastStreamManager:
@@ -356,7 +405,7 @@ class PodcastStreamManager:
                 for idx, row in enumerate(all_data[1:], start=2):
                     if row[0] == video['id']:
                         self.sheets.update_video(idx, video, has_transcript, summary)
-                        logger.info(f"Updated video: {video['title'][:50]}...")
+                        logger.info(f"Updated video: {video['title'][:50]}... (Duration: {video['duration']})")
                         processed += 1
                         break
         
