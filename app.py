@@ -133,19 +133,21 @@ def update_sheet():
         # Sort by publish date (newest first)
         all_new_videos.sort(key=lambda x: x['published_at'], reverse=True)
         
-        # Add new videos to sheet
+        # Add new videos to sheet in ONE batch
         if all_new_videos:
-            # Get current last row
-            last_row = len(worksheet.get_all_values())
-            
+            # Prepare all rows
+            new_rows = []
             for video in all_new_videos:
-                last_row += 1
                 video_url = f"https://www.youtube.com/watch?v={video['video_id']}"
-                
-                # Add row with: Channel URL (empty), Duration, Video URL, Channel Title, Video Title
+                # Row format: Channel URL (empty), Duration, Video URL, Channel Title, Video Title
                 new_row = ['', video['duration'], video_url, video['channel_title'], video['title']]
-                worksheet.insert_row(new_row, last_row)
-                logger.info(f"Added: {video['title']} from {video['channel_title']}")
+                new_rows.append(new_row)
+                logger.info(f"Prepared: {video['title']} from {video['channel_title']}")
+            
+            # Batch append all rows in ONE API call
+            logger.info(f"Batch appending {len(new_rows)} rows...")
+            worksheet.append_rows(new_rows, value_input_option='USER_ENTERED')
+            logger.info(f"✅ Successfully added {len(new_rows)} videos!")
         
         logger.info(f"Completed! Processed {len(all_new_videos)} videos")
         
