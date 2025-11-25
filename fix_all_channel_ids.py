@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Setup credentials
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-SERVICE_ACCOUNT_INFO = json.loads(os.environ['GOOGLE_CREDENTIALS_JSON'])
+SERVICE_ACCOUNT_INFO = json.loads(os.environ['GOOGLE_SHEETS_CREDENTIALS'])
 creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=SCOPES)
 
 # Setup Google Sheets
