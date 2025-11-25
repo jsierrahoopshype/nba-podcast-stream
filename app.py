@@ -6,19 +6,60 @@ from datetime import datetime, timedelta
 import os
 import time
 import anthropic
+import json
 
 app = Flask(__name__)
 
 # ============ CONFIGURATION ============
 YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY')
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
-SPREADSHEET_ID = '1234567890abcdef'  # Replace with your actual spreadsheet ID
+SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID')
 
+# ALL 43 NBA PODCAST CHANNELS
 CHANNELS = [
     'UCrUJ2hRTGLEaozZZ8cp5u0A',  # TheOGsShow
     'UCoA3lm9UTWDWK8Z1kcoWQcA',  # club520podcast
+    'UCf5fcEALUCA53oUW3mc8tiQ',  # victoroladipo
+    'UCU50K9xm-5_qbzwjMRr9A8w',  # ToTheBaha
+    'UC6L_LBqoKZXFa4WxHox5iCw',  # MindTheGamePodcast
+    'UCxclESttS8hoRMd6cIYGgeA',  # TheWAEShow
+    'UCllPn98H4a079UMrahK7hhw',  # KyrieIrvingLIVE
+    'UCuJ6CSQLBNb0nUvOn-s4aSA',  # TheGilbertArenasShow
     'UCIhTfcMzbR5wyNeh57ju0ug',  # DamianLillard
-    # Add all 43 channel IDs here...
+    'UCLqzKYd1tST9lRPbEUoH5Hg',  # knuckleheadspodcastTPT
+    'UCIOXmaExi4DjLHGyGvnu3bw',  # TheBigPod
+    'UCSes4X8uDrpc4X46hJKjejg',  # RoadTrippin
+    'UCIuKoa1AIiLTiXo0v69gTRg',  # RunYourRaceTL
+    'UC_a6c3KLo9reMOqn2pbvMqg',  # The_Backyard_Podcast
+    'UCFEiKlkFpJBISr1paTLW8Vg',  # AnthonyEdwards
+    'UC3ZStupBLNVY4wVVOn7-e3w',  # CuriousMike
+    'UCODlrQzQGttxpYglzmoOaEA',  # Dwighthoward.AboveTheRim
+    'UCelmZalfinXZQP7dXw0ZauQ',  # JaylenBrown
+    'UCfHG9GrqjYaEdPkrRi9LiBA',  # demarderozan6347
+    'UCwr3hqUDuO4D4szLkjeVlrA',  # TraeYoung
+    'UCbPY1Efha9VPRBYW2x1M16A',  # YOUNGMANANDTHREE
+    'UCa9W_cPwwbDlwBwHOd1YWoQ',  # KGCertified
+    'UC4uXDQzZG_WNeIyJQEsZcNA',  # Straight2cam
+    'UC4p0nlqdUlocfv--48-15Lg',  # Catch12Media
+    'UCvy0Lw9TcvSAQnTzj62aOUA',  # roguebogues
+    'UCqbroTPGO_SaLJB_TI4zztg',  # OnTheHausPodcast
+    'UCuhRRUv5bBdVRU6uExsd24w',  # StraightGame.podcast
+    'UC2ozVs4pg2K3uFLw6-0ayCQ',  # AllTheSmokeProductions
+    'UC7HDMexhX9XlWqa8Y1n1SJQ',  # whitenoisepodofficial
+    'UCB_4C2Gl7Zfg4uBXk_AcWwA',  # TheBoardroom
+    'UC_MXNS3qkraCAEebdScjAPA',  # podcastpshow
+    'UC_RyUOQqh3W77giXrbGKVGg',  # kylekuzmaofficial
+    'UCFpuYxEexZvdaFQQf3Vloqg',  # AndreDrummond
+    'UCrlL3lECKmzkcYK8S6cW2Eg',  # DwyaneWade
+    'UCUqIXubCV7gcDJ-QZrdYRbw',  # ThanalysisShow
+    'UCqwKvfByZqmdC2jaFcUPcvQ',  # OutTheMudTL
+    'UCVKTjJgaohHuJTtNjXCKazw',  # DannyGreenxInsidetheGreenRoom
+    'UCwZo_mDI4fOIp-g18kinGBw',  # RunItBackFDTV
+    'UC5VYF0LHox2_7Ql2pKihqCQ',  # jaredmccain024
+    'UC1N15bwJCPFHjEsun1epfmw',  # Roommates_Show
+    'UCalFuU3MOWE39CS6SbfOUgA',  # jalenjdubwilliams
+    'UCZv6u7QVz-c8UoiJOMb2oyg',  # nigel_hayes
+    'UCd6K_nXCeWBk8YDwja0PPZg',  # TylerHerro
 ]
 
 # ============ GOOGLE SHEETS SETUP ============
@@ -26,8 +67,7 @@ def get_sheets_client():
     scope = ['https://spreadsheets.google.com/feeds',
              'https://www.googleapis.com/auth/drive']
     
-    # Use environment variable for credentials
-    creds_dict = eval(os.environ.get('GOOGLE_CREDENTIALS'))
+    creds_dict = json.loads(os.environ.get('GOOGLE_SHEETS_CREDENTIALS'))
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     return gspread.authorize(creds)
 
@@ -35,10 +75,8 @@ def get_sheets_client():
 def get_channel_videos(youtube, channel_id, hours_back=6):
     """Fetch recent videos from a channel"""
     try:
-        # Calculate cutoff time
         cutoff_time = datetime.utcnow() - timedelta(hours=hours_back)
         
-        # Get channel uploads playlist
         channel_response = youtube.channels().list(
             part='contentDetails',
             id=channel_id
@@ -49,7 +87,6 @@ def get_channel_videos(youtube, channel_id, hours_back=6):
         
         uploads_playlist = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
         
-        # Get recent videos from uploads playlist
         videos = []
         next_page_token = None
         
@@ -65,10 +102,10 @@ def get_channel_videos(youtube, channel_id, hours_back=6):
                 videos.append(item['contentDetails']['videoId'])
             
             next_page_token = playlist_response.get('nextPageToken')
-            if not next_page_token or len(videos) >= 10:  # Limit to 10 most recent
+            if not next_page_token or len(videos) >= 10:
                 break
         
-        return videos[:10]  # Return up to 10 most recent
+        return videos[:10]
     
     except Exception as e:
         print(f"Error fetching videos for channel {channel_id}: {e}")
@@ -80,7 +117,6 @@ def get_video_details(youtube, video_ids):
         return []
     
     try:
-        # Fetch video details
         video_response = youtube.videos().list(
             part='snippet,contentDetails,statistics',
             id=','.join(video_ids)
@@ -93,7 +129,6 @@ def get_video_details(youtube, video_ids):
             statistics = item.get('statistics', {})
             content_details = item['contentDetails']
             
-            # Parse ISO 8601 duration (PT1H2M10S -> 1:02:10)
             duration = parse_duration(content_details.get('duration', ''))
             
             video_data = {
@@ -103,7 +138,7 @@ def get_video_details(youtube, video_ids):
                 'channel_id': snippet['channelId'],
                 'published_date': snippet['publishedAt'],
                 'thumbnail': snippet['thumbnails']['high']['url'],
-                'description': snippet.get('description', '')[:500],  # Limit to 500 chars
+                'description': snippet.get('description', '')[:500],
                 'view_count': statistics.get('viewCount', '0'),
                 'like_count': statistics.get('likeCount', '0'),
                 'comment_count': statistics.get('commentCount', '0'),
@@ -119,7 +154,7 @@ def get_video_details(youtube, video_ids):
         return []
 
 def parse_duration(iso_duration):
-    """Convert ISO 8601 duration to readable format (PT1H2M10S -> 1:02:10)"""
+    """Convert ISO 8601 duration to readable format"""
     import re
     
     if not iso_duration:
@@ -187,23 +222,18 @@ def write_videos_to_sheet(videos_data):
         client = get_sheets_client()
         spreadsheet = client.open_by_key(SPREADSHEET_ID)
         
-        # Access the "Videos" tab
         sheet = spreadsheet.worksheet('Videos')
         
-        # Get existing video IDs to avoid duplicates
         existing_ids = get_existing_video_ids(sheet)
         
-        # Filter out videos that already exist
         new_videos = [v for v in videos_data if v['video_id'] not in existing_ids]
         
         if not new_videos:
             print("No new videos to add")
             return 0
         
-        # Prepare rows for insertion
         rows = []
         for video in new_videos:
-            # Generate AI summary
             ai_summary = generate_ai_summary(video['title'], video['description'])
             
             row = [
@@ -215,18 +245,15 @@ def write_videos_to_sheet(videos_data):
                 video['thumbnail'],
                 video['description'],
                 video['view_count'],
-                'N/A',  # Subscriber Count (not fetching)
-                'No',   # Transcript Available
+                'N/A',
+                'No',
                 ai_summary,
                 datetime.utcnow().isoformat()
             ]
             
             rows.append(row)
-            
-            # Rate limiting for Claude API
             time.sleep(1)
         
-        # Append rows to sheet
         sheet.append_rows(rows, value_input_option='USER_ENTERED')
         
         print(f"Added {len(rows)} new videos to sheet")
@@ -245,7 +272,6 @@ def update_videos():
     
     all_new_videos = []
     
-    # Fetch videos from each channel
     for channel_id in CHANNELS:
         print(f"Fetching videos from channel: {channel_id}")
         
@@ -255,10 +281,8 @@ def update_videos():
             video_details = get_video_details(youtube, video_ids)
             all_new_videos.extend(video_details)
         
-        # Rate limiting
         time.sleep(0.5)
     
-    # Write to Google Sheets
     if all_new_videos:
         videos_added = write_videos_to_sheet(all_new_videos)
         print(f"Update complete: {videos_added} videos added")
@@ -287,8 +311,5 @@ scheduler.add_job(func=update_videos, trigger="interval", hours=6)
 scheduler.start()
 
 if __name__ == '__main__':
-    # Run initial update
     update_videos()
-    
-    # Start Flask app
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
