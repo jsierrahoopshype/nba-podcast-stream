@@ -273,11 +273,5 @@ if __name__ == '__main__':
     main()
 ```
 
----
 
-## **2. Copy this for `requirements.txt`:**
-```
-google-api-python-client==2.108.0
-gspread==5.12.0
-oauth2client==4.1.3
-anthropic==0.39.0
+
