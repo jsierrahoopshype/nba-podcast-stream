@@ -159,35 +159,8 @@ def parse_duration(iso_duration):
         return f"{minutes}:{seconds:02d}"
 
 def generate_ai_summary(video_title, video_description):
-    if not ANTHROPIC_API_KEY:
-        return ''
-    
-    try:
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-        
-        prompt = f"""You are summarizing an NBA podcast video. Provide a brief 2-3 sentence summary of the key topics discussed.
-
-Title: {video_title}
-Description: {video_description}
-
-Provide a concise summary focusing on:
-- Main topics/players/teams discussed
-- Key insights or hot takes
-- Any breaking news or analysis
-
-Summary:"""
-        
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=150,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        return message.content[0].text.strip()
-    
-    except Exception as e:
-        print(f"Error generating AI summary: {e}")
-        return ''
+    # AI summaries disabled
+    return ''
 
 def get_existing_video_ids(sheet):
     try:
