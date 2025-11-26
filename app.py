@@ -1,4 +1,3 @@
-from flask import Flask
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
@@ -7,8 +6,6 @@ import os
 import time
 import anthropic
 import json
-
-app = Flask(__name__)
 
 # ============ CONFIGURATION ============
 YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY')
@@ -62,7 +59,6 @@ CHANNELS = [
     'UCd6K_nXCeWBk8YDwja0PPZg',  # TylerHerro
 ]
 
-# ============ GOOGLE SHEETS SETUP ============
 def get_sheets_client():
     scope = ['https://spreadsheets.google.com/feeds',
              'https://www.googleapis.com/auth/drive']
@@ -71,9 +67,7 @@ def get_sheets_client():
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     return gspread.authorize(creds)
 
-# ============ YOUTUBE DATA FETCHING ============
 def get_channel_videos(youtube, channel_id, hours_back=6):
-    """Fetch recent videos from a channel"""
     try:
         cutoff_time = datetime.utcnow() - timedelta(hours=hours_back)
         
@@ -88,31 +82,22 @@ def get_channel_videos(youtube, channel_id, hours_back=6):
         uploads_playlist = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
         
         videos = []
-        next_page_token = None
+        playlist_response = youtube.playlistItems().list(
+            part='contentDetails',
+            playlistId=uploads_playlist,
+            maxResults=10
+        ).execute()
         
-        while True:
-            playlist_response = youtube.playlistItems().list(
-                part='contentDetails',
-                playlistId=uploads_playlist,
-                maxResults=50,
-                pageToken=next_page_token
-            ).execute()
-            
-            for item in playlist_response['items']:
-                videos.append(item['contentDetails']['videoId'])
-            
-            next_page_token = playlist_response.get('nextPageToken')
-            if not next_page_token or len(videos) >= 10:
-                break
+        for item in playlist_response['items']:
+            videos.append(item['contentDetails']['videoId'])
         
-        return videos[:10]
+        return videos
     
     except Exception as e:
         print(f"Error fetching videos for channel {channel_id}: {e}")
         return []
 
 def get_video_details(youtube, video_ids):
-    """Fetch full metadata for videos"""
     if not video_ids:
         return []
     
@@ -154,7 +139,6 @@ def get_video_details(youtube, video_ids):
         return []
 
 def parse_duration(iso_duration):
-    """Convert ISO 8601 duration to readable format"""
     import re
     
     if not iso_duration:
@@ -174,9 +158,7 @@ def parse_duration(iso_duration):
     else:
         return f"{minutes}:{seconds:02d}"
 
-# ============ AI SUMMARY GENERATION ============
 def generate_ai_summary(video_title, video_description):
-    """Generate AI summary using Claude API"""
     if not ANTHROPIC_API_KEY:
         return ''
     
@@ -207,9 +189,7 @@ Summary:"""
         print(f"Error generating AI summary: {e}")
         return ''
 
-# ============ GOOGLE SHEETS OPERATIONS ============
 def get_existing_video_ids(sheet):
-    """Get list of video IDs already in the sheet"""
     try:
         records = sheet.get_all_records()
         return set(record['Video ID'] for record in records if record.get('Video ID'))
@@ -217,7 +197,6 @@ def get_existing_video_ids(sheet):
         return set()
 
 def write_videos_to_sheet(videos_data):
-    """Write new videos to the Videos tab"""
     try:
         client = get_sheets_client()
         spreadsheet = client.open_by_key(SPREADSHEET_ID)
@@ -234,6 +213,7 @@ def write_videos_to_sheet(videos_data):
         
         rows = []
         for video in new_videos:
+            print(f"Processing: {video['title']}")
             ai_summary = generate_ai_summary(video['title'], video['description'])
             
             row = [
@@ -256,24 +236,22 @@ def write_videos_to_sheet(videos_data):
         
         sheet.append_rows(rows, value_input_option='USER_ENTERED')
         
-        print(f"Added {len(rows)} new videos to sheet")
+        print(f"✅ Added {len(rows)} new videos to sheet")
         return len(rows)
     
     except Exception as e:
-        print(f"Error writing to sheet: {e}")
+        print(f"❌ Error writing to sheet: {e}")
         return 0
 
-# ============ MAIN UPDATE FUNCTION ============
-def update_videos():
-    """Main function to fetch and update videos"""
-    print(f"Starting video update at {datetime.utcnow()}")
+def main():
+    print(f"🚀 Starting video update at {datetime.utcnow()}")
     
     youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
     
     all_new_videos = []
     
     for channel_id in CHANNELS:
-        print(f"Fetching videos from channel: {channel_id}")
+        print(f"📺 Fetching videos from channel: {channel_id}")
         
         video_ids = get_channel_videos(youtube, channel_id, hours_back=6)
         
@@ -283,33 +261,23 @@ def update_videos():
         
         time.sleep(0.5)
     
+    print(f"📊 Found {len(all_new_videos)} total videos")
+    
     if all_new_videos:
         videos_added = write_videos_to_sheet(all_new_videos)
-        print(f"Update complete: {videos_added} videos added")
+        print(f"✅ Update complete: {videos_added} new videos added")
     else:
-        print("No new videos found")
-
-# ============ FLASK ROUTES ============
-@app.route('/')
-def home():
-    return "NBA Podcast Aggregator Running!"
-
-@app.route('/update')
-def trigger_update():
-    """Manual trigger endpoint"""
-    try:
-        update_videos()
-        return "Update completed successfully!"
-    except Exception as e:
-        return f"Update failed: {str(e)}", 500
-
-# ============ SCHEDULED UPDATES ============
-from apscheduler.schedulers.background import BackgroundScheduler
-
-scheduler = BackgroundScheduler()
-scheduler.add_job(func=update_videos, trigger="interval", hours=6)
-scheduler.start()
+        print("ℹ️ No new videos found")
 
 if __name__ == '__main__':
-    update_videos()
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
+    main()
+```
+
+---
+
+## **2. Copy this for `requirements.txt`:**
+```
+google-api-python-client==2.108.0
+gspread==5.12.0
+oauth2client==4.1.3
+anthropic==0.39.0
