@@ -12,7 +12,7 @@ YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY')
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID')
 
-# ALL 57 NBA PODCAST CHANNELS
+# ALL 57 NBA PODCAST CHANNELS (always included)
 CHANNELS = [
     'UCrUJ2hRTGLEaozZZ8cp5u0A',  # TheOGsShow
     'UCoA3lm9UTWDWK8Z1kcoWQcA',  # club520podcast
@@ -56,7 +56,6 @@ CHANNELS = [
     'UCalFuU3MOWE39CS6SbfOUgA',  # jalenjdubwilliams
     'UCZv6u7QVz-c8UoiJOMb2oyg',  # nigel_hayes
     'UCd6K_nXCeWBk8YDwja0PPZg',  # TylerHerro
-    # NEW CHANNELS ADDED
     'UCIlXFWq4v1CymTFBBgQ589Q',  # Hoopin' N Hollerin'
     'UCBIPGMEJ72kaL9QHw3xUvuw',  # The Dawg Talk Podcast
     'UC-Ovj3qDVxBAOWX3kwzOVRw',  # No Fouls Given
@@ -73,6 +72,45 @@ CHANNELS = [
     'UCT3wF21Qx0d0HmuiCzji8Lg',  # 7PM in Brooklyn with Carmelo Anthony
     'UCS5fdgvuA-fCPZQsk0unKnw',  # The Zach Lowe Show
 ]
+
+# CONDITIONAL CHANNELS (only include if keywords match)
+CONDITIONAL_CHANNELS = {
+    'UC_fs6bgkAF9UgWNmJCvl8Pw': {  # Nate Duncan
+        'name': 'Nate Duncan',
+        'keywords': ['Hollinger'],
+        'match_all': False  # Any keyword matches
+    },
+    'UCxcTeAKWJca6XyJ37_ZoKIQ': {  # Pat McAfee Show
+        'name': 'The Pat McAfee Show',
+        'keywords': ['Shams'],
+        'match_all': False
+    },
+    'UCVSSpcmZD2PwPBqb8yKQKBA': {  # NBA on ESPN
+        'name': 'NBA on ESPN',
+        'keywords': ['Collective'],
+        'match_all': False
+    },
+    'UCT83YP07yVuaH9J19YABhlw': {  # The Ringer NBA
+        'name': 'The Ringer NBA',
+        'keywords': [],  # Empty = always include
+        'match_all': False
+    },
+    'UCP032AGFh2KzzIUGylB9BjA': {  # Bill Simmons
+        'name': 'Bill Simmons',
+        'keywords': ['NBA'],
+        'match_all': False
+    },
+    'UCi9ACGG8NptsQhaMyezITEw': {  # Yahoo Sports
+        'name': 'Yahoo Sports',
+        'keywords': ['Kevin O\'Connor', 'Iko'],
+        'match_all': False
+    },
+    'UCPAt6z5uX_c5Eo_cSNROzYw': {  # Sports Illustrated
+        'name': 'Sports Illustrated',
+        'keywords': ['Mannix', 'Nichols'],
+        'match_all': True  # BOTH keywords must appear
+    }
+}
 
 def get_sheets_client():
     scope = ['https://spreadsheets.google.com/feeds',
@@ -173,6 +211,30 @@ def parse_duration(iso_duration):
     else:
         return f"{minutes}:{seconds:02d}"
 
+def matches_keywords(video, keywords, match_all=False):
+    """
+    Check if video title or description contains the required keywords.
+    
+    Args:
+        video: Video data dict
+        keywords: List of keywords to search for
+        match_all: If True, ALL keywords must be present. If False, ANY keyword matches.
+    
+    Returns:
+        True if keywords match, False otherwise
+    """
+    if not keywords:  # Empty keywords list = always include
+        return True
+    
+    text = f"{video['title']} {video['description']}".lower()
+    
+    if match_all:
+        # ALL keywords must be present
+        return all(keyword.lower() in text for keyword in keywords)
+    else:
+        # ANY keyword matches
+        return any(keyword.lower() in text for keyword in keywords)
+
 def generate_ai_summary(video_title, video_description):
     # AI summaries disabled
     return ''
@@ -241,8 +303,10 @@ def main():
     
     all_new_videos = []
     
+    # Process regular channels (always include all videos)
+    print("\n📺 Processing regular channels...")
     for channel_id in CHANNELS:
-        print(f"📺 Fetching videos from channel: {channel_id}")
+        print(f"  Fetching from: {channel_id}")
         
         video_ids = get_channel_videos(youtube, channel_id, hours_back=6)
         
@@ -252,7 +316,27 @@ def main():
         
         time.sleep(0.5)
     
-    print(f"📊 Found {len(all_new_videos)} total videos")
+    # Process conditional channels (filter by keywords)
+    print("\n🔍 Processing conditional channels...")
+    for channel_id, config in CONDITIONAL_CHANNELS.items():
+        print(f"  Fetching from: {config['name']} (keywords: {config['keywords']})")
+        
+        video_ids = get_channel_videos(youtube, channel_id, hours_back=6)
+        
+        if video_ids:
+            video_details = get_video_details(youtube, video_ids)
+            
+            # Filter videos by keywords
+            for video in video_details:
+                if matches_keywords(video, config['keywords'], config['match_all']):
+                    print(f"    ✓ MATCH: {video['title']}")
+                    all_new_videos.append(video)
+                else:
+                    print(f"    ✗ SKIP: {video['title']}")
+        
+        time.sleep(0.5)
+    
+    print(f"\n📊 Found {len(all_new_videos)} total videos")
     
     if all_new_videos:
         videos_added = write_videos_to_sheet(all_new_videos)
