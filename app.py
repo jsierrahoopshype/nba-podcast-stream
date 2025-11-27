@@ -12,7 +12,7 @@ YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY')
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID')
 
-# ALL 43 NBA PODCAST CHANNELS
+# ALL 42 NBA PODCAST CHANNELS (removed The Basement Yard)
 CHANNELS = [
     'UCrUJ2hRTGLEaozZZ8cp5u0A',  # TheOGsShow
     'UCoA3lm9UTWDWK8Z1kcoWQcA',  # club520podcast
@@ -27,7 +27,6 @@ CHANNELS = [
     'UCIOXmaExi4DjLHGyGvnu3bw',  # TheBigPod
     'UCSes4X8uDrpc4X46hJKjejg',  # RoadTrippin
     'UCIuKoa1AIiLTiXo0v69gTRg',  # RunYourRaceTL
-    'UC_a6c3KLo9reMOqn2pbvMqg',  # The_Backyard_Podcast
     'UCFEiKlkFpJBISr1paTLW8Vg',  # AnthonyEdwards
     'UC3ZStupBLNVY4wVVOn7-e3w',  # CuriousMike
     'UCODlrQzQGttxpYglzmoOaEA',  # Dwighthoward.AboveTheRim
@@ -202,9 +201,9 @@ def write_videos_to_sheet(videos_data):
                 'No',                           # J: Transcript Available
                 ai_summary,                     # K: AI Summary
                 datetime.utcnow().isoformat(),  # L: Last Updated
-                video['duration'],              # M: Duration (NEW!)
-                video['like_count'],            # N: Like Count (NEW!)
-                video['comment_count']          # O: Comment Count (NEW!)
+                video['duration'],              # M: Duration
+                video['like_count'],            # N: Like Count
+                video['comment_count']          # O: Comment Count
             ]
             
             rows.append(row)
