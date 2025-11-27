@@ -925,6 +925,7 @@
                     result.sort((a, b) => parseDuration(b.duration) - parseDuration(a.duration)); 
                     break;
                 case 'channel': 
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
                     result.sort((a, b) => a.channelName.localeCompare(b.channelName)); 
                     break;
                 default: 
