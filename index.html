@@ -528,7 +528,18 @@
         };
         
         const NBA_TEAMS = ['Lakers', 'Warriors', 'Celtics', 'Heat', 'Bucks', 'Nuggets', 'Suns', 'Mavericks', 'Sixers', '76ers', 'Knicks', 'Clippers', 'Kings'];
-        const TOPICS = ['Trade', 'Playoff', 'Draft', 'MVP', 'Championship', 'Finals', 'Injury', 'Analysis', 'Recap', 'Preview', 'Breaking'];
+        const TOPICS = [
+            'Trade Rumors', 'Trade Deadline', 'Free Agency', 
+            'Playoffs', 'Play-In', 'NBA Finals',
+            'Draft', 'Draft Lottery', 'Rookie', 
+            'MVP Race', 'All-Star', 'DPOY',
+            'Injury Report', 'Comeback', 'Suspension',
+            'Beef', 'Controversy', 'Drama',
+            'Game Winner', 'Clutch', 'Overtime',
+            'Record Breaking', 'Historic', 'Milestone',
+            'Coaching', 'Front Office', 'Ownership',
+            'In-Season Tournament', 'NBA Cup', 'Team USA'
+        ];
         
         let allVideos = [], filteredVideos = [], displayedCount = ITEMS_PER_LOAD;
         let currentFilter = 'all', currentSort = 'date', searchQuery = '', isLoading = false;
