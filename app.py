@@ -12,7 +12,7 @@ YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY')
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID')
 
-# ALL 42 NBA PODCAST CHANNELS (removed The Basement Yard)
+# ALL 57 NBA PODCAST CHANNELS
 CHANNELS = [
     'UCrUJ2hRTGLEaozZZ8cp5u0A',  # TheOGsShow
     'UCoA3lm9UTWDWK8Z1kcoWQcA',  # club520podcast
@@ -24,7 +24,7 @@ CHANNELS = [
     'UCuJ6CSQLBNb0nUvOn-s4aSA',  # TheGilbertArenasShow
     'UCIhTfcMzbR5wyNeh57ju0ug',  # DamianLillard
     'UCLqzKYd1tST9lRPbEUoH5Hg',  # knuckleheadspodcastTPT
-    'UCIOXmaExi4DjLHGyGvnu3bw',  # TheBigPod
+    'UCIOXmaExi4DjLHGyGvnu3bw',  # TheBigPod / The Big Podcast with Shaq
     'UCSes4X8uDrpc4X46hJKjejg',  # RoadTrippin
     'UCIuKoa1AIiLTiXo0v69gTRg',  # RunYourRaceTL
     'UCFEiKlkFpJBISr1paTLW8Vg',  # AnthonyEdwards
@@ -45,7 +45,7 @@ CHANNELS = [
     'UCB_4C2Gl7Zfg4uBXk_AcWwA',  # TheBoardroom
     'UC_MXNS3qkraCAEebdScjAPA',  # podcastpshow
     'UC_RyUOQqh3W77giXrbGKVGg',  # kylekuzmaofficial
-    'UCFpuYxEexZvdaFQQf3Vloqg',  # AndreDrummond
+    'UCFpuYxEExZvdaFQQf3Vloqg',  # AndreDrummond
     'UCrlL3lECKmzkcYK8S6cW2Eg',  # DwyaneWade
     'UCUqIXubCV7gcDJ-QZrdYRbw',  # ThanalysisShow
     'UCqwKvfByZqmdC2jaFcUPcvQ',  # OutTheMudTL
@@ -56,6 +56,22 @@ CHANNELS = [
     'UCalFuU3MOWE39CS6SbfOUgA',  # jalenjdubwilliams
     'UCZv6u7QVz-c8UoiJOMb2oyg',  # nigel_hayes
     'UCd6K_nXCeWBk8YDwja0PPZg',  # TylerHerro
+    # NEW CHANNELS ADDED
+    'UCIlXFWq4v1CymTFBBgQ589Q',  # Hoopin' N Hollerin'
+    'UCBIPGMEJ72kaL9QHw3xUvuw',  # The Dawg Talk Podcast
+    'UC-Ovj3qDVxBAOWX3kwzOVRw',  # No Fouls Given
+    'UCAvjYgmwadC682OoC4Cc6TQ',  # The Arena
+    'UCBNqqomXKPSWvcQDXOkRvRA',  # The Draymond Green Show
+    'UCemwSsWl4rg313rUCBcDiJw',  # Point Game Podcast with Isaiah Thomas
+    'UCYYTsni8rBjKzBPGu3-Q8LA',  # Stacey King's Gimme The Hot Sauce Podcast
+    'UCBcs-QN0f0DkeCU_pDHTYtA',  # Jovan Buha
+    'UC-bJU7MdQ4NW7zUbKChPp6Q',  # NBAFrontOffice
+    'UCNGuP7AKOZ9yi7x5SDiCOjg',  # AJ Dybantsa
+    'UCU1d7JjFkXlvXeFoHez44AQ',  # The Bench Seat
+    'UCCGJZrHsGPYXlZx7WeO1P-w',  # Third Apron
+    'UCA95kYjGqDgRziNA7sJZBag',  # The Richard Jefferson Show
+    'UCT3wF21Qx0d0HmuiCzji8Lg',  # 7PM in Brooklyn with Carmelo Anthony
+    'UCS5fdgvuA-fCPZQsk0unKnw',  # The Zach Lowe Show
 ]
 
 def get_sheets_client():
