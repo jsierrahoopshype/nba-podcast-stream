@@ -190,21 +190,21 @@ def write_videos_to_sheet(videos_data):
             ai_summary = generate_ai_summary(video['title'], video['description'])
             
             row = [
-                video['video_id'],
-                video['title'],
-                video['channel_name'],
-                video['channel_id'],
-                video['published_date'],
-                video['thumbnail'],
-                video['description'],
-                video['view_count'],
-                video['duration'],
-                video['like_count'],
-                video['comment_count'],
-                'N/A',
-                'No',
-                ai_summary,
-                datetime.utcnow().isoformat()
+                video['video_id'],              # A: Video ID
+                video['title'],                 # B: Title
+                video['channel_name'],          # C: Channel Name
+                video['channel_id'],            # D: Channel ID
+                video['published_date'],        # E: Published Date
+                video['thumbnail'],             # F: Thumbnail URL
+                video['description'],           # G: Description
+                video['view_count'],            # H: View Count
+                'N/A',                          # I: Subscriber Count
+                'No',                           # J: Transcript Available
+                ai_summary,                     # K: AI Summary
+                datetime.utcnow().isoformat(),  # L: Last Updated
+                video['duration'],              # M: Duration (NEW!)
+                video['like_count'],            # N: Like Count (NEW!)
+                video['comment_count']          # O: Comment Count (NEW!)
             ]
             
             rows.append(row)
