@@ -461,7 +461,7 @@
     <div class="container">
         <div class="header">
             <h1>🏀 NBA Podcast Stream</h1>
-            <p>Latest episodes from 43 NBA podcasts</p>
+            <p>Latest episodes from 42 NBA podcasts</p>
         </div>
 
         <div class="controls">
@@ -477,14 +477,17 @@
             
             <div class="filters">
                 <button class="filter-btn active" data-filter="all">All Episodes</button>
-                <button class="filter-btn" data-filter="trending">🔥 Trending (36h)</button>
+                <button class="filter-btn" data-filter="trending">🔥 Trending</button>
                 <button class="filter-btn" data-filter="new">🆕 New Today</button>
             </div>
 
             <div class="sort-controls">
                 <span class="sort-label">Sort:</span>
                 <button class="sort-btn active" data-sort="date">Latest</button>
-                <button class="sort-btn" data-sort="views">Most Viewed (36h)</button>
+                <button class="sort-btn" data-sort="views">Most Viewed</button>
+                <button class="sort-btn" data-sort="hottest">🔥 Hottest</button>
+                <button class="sort-btn" data-sort="gems">💎 Hidden Gems</button>
+                <button class="sort-btn" data-sort="discussed">💬 Most Discussed</button>
                 <button class="sort-btn" data-sort="likes">Most Liked</button>
                 <button class="sort-btn" data-sort="comments">Most Comments</button>
                 <button class="sort-btn" data-sort="duration">Duration</button>
@@ -572,6 +575,18 @@
             if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
             if (parts.length === 2) return parts[0] * 60 + parts[1];
             return 0;
+        }
+        
+        function calculateEngagementRate(video) {
+            const views = parseInt(video.viewCount) || 1;
+            const likes = parseInt(video.likeCount) || 0;
+            return (likes / views) * 1000;
+        }
+        
+        function calculateDiscussionRate(video) {
+            const views = parseInt(video.viewCount) || 1;
+            const comments = parseInt(video.commentCount) || 0;
+            return (comments / views) * 1000;
         }
         
         function getAgeInHours(dateString) {
@@ -894,6 +909,16 @@
                 case 'views': 
                     result = result.filter(v => isRecent36Hours(v.publishedDate));
                     result.sort((a, b) => parseInt(b.viewCount) - parseInt(a.viewCount)); 
+                    break;
+                case 'hottest':
+                    result.sort((a, b) => calculateEngagementRate(b) - calculateEngagementRate(a));
+                    break;
+                case 'gems':
+                    result = result.filter(v => parseInt(v.viewCount) < 50000);
+                    result.sort((a, b) => calculateEngagementRate(b) - calculateEngagementRate(a));
+                    break;
+                case 'discussed':
+                    result.sort((a, b) => calculateDiscussionRate(b) - calculateDiscussionRate(a));
                     break;
                 case 'likes': 
                     result.sort((a, b) => parseInt(b.likeCount || 0) - parseInt(a.likeCount || 0)); 
