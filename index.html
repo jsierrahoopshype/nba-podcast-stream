@@ -477,14 +477,16 @@
             
             <div class="filters">
                 <button class="filter-btn active" data-filter="all">All Episodes</button>
-                <button class="filter-btn" data-filter="trending">🔥 Trending</button>
+                <button class="filter-btn" data-filter="trending">🔥 Trending (36h)</button>
                 <button class="filter-btn" data-filter="new">🆕 New Today</button>
             </div>
 
             <div class="sort-controls">
                 <span class="sort-label">Sort:</span>
                 <button class="sort-btn active" data-sort="date">Latest</button>
-                <button class="sort-btn" data-sort="views">Most Viewed</button>
+                <button class="sort-btn" data-sort="views">Most Viewed (36h)</button>
+                <button class="sort-btn" data-sort="likes">Most Liked</button>
+                <button class="sort-btn" data-sort="comments">Most Comments</button>
                 <button class="sort-btn" data-sort="duration">Duration</button>
                 <button class="sort-btn" data-sort="channel">Channel A-Z</button>
             </div>
@@ -580,6 +582,7 @@
         
         function isNew(dateString) { return getAgeInHours(dateString) < 24; }
         function isTrending(viewCount) { return parseInt(viewCount) > 50000; }
+        function isRecent36Hours(dateString) { return getAgeInHours(dateString) <= 36; }
         
         function extractEpisode(title) {
             const patterns = [/ep\.?\s*#?(\d+)/i, /episode\s*#?(\d+)/i, /#(\d+)/, /\[(\d+)\]/, /\((\d+)\)/];
@@ -808,8 +811,8 @@
             if (video.subscriberCount !== 'N/A' && video.subscriberCount !== 'Hidden') {
                 statsHtml += `<div class="stat-item">👥 <strong>${formatNumber(video.subscriberCount)}</strong></div>`;
             }
-            if (video.likeCount !== '0') statsHtml += `<div class="stat-item">👍 <strong>${formatNumber(video.likeCount)}</strong></div>`;
-            if (video.commentCount !== '0') statsHtml += `<div class="stat-item">💬 <strong>${formatNumber(video.commentCount)}</strong></div>`;
+            if (video.likeCount && video.likeCount !== '0') statsHtml += `<div class="stat-item">👍 <strong>${formatNumber(video.likeCount)}</strong></div>`;
+            if (video.commentCount && video.commentCount !== '0') statsHtml += `<div class="stat-item">💬 <strong>${formatNumber(video.commentCount)}</strong></div>`;
             
             let relatedHtml = '';
             if (relatedContent.length > 0) {
@@ -879,15 +882,33 @@
             }
             
             switch(currentFilter) {
-                case 'trending': result = result.filter(v => isTrending(v.viewCount)); break;
-                case 'new': result = result.filter(v => isNew(v.publishedDate)); break;
+                case 'trending': 
+                    result = result.filter(v => isTrending(v.viewCount) && isRecent36Hours(v.publishedDate)); 
+                    break;
+                case 'new': 
+                    result = result.filter(v => isNew(v.publishedDate)); 
+                    break;
             }
             
             switch(currentSort) {
-                case 'views': result.sort((a, b) => parseInt(b.viewCount) - parseInt(a.viewCount)); break;
-                case 'duration': result.sort((a, b) => parseDuration(b.duration) - parseDuration(a.duration)); break;
-                case 'channel': result.sort((a, b) => a.channelName.localeCompare(b.channelName)); break;
-                default: result.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+                case 'views': 
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
+                    result.sort((a, b) => parseInt(b.viewCount) - parseInt(a.viewCount)); 
+                    break;
+                case 'likes': 
+                    result.sort((a, b) => parseInt(b.likeCount || 0) - parseInt(a.likeCount || 0)); 
+                    break;
+                case 'comments': 
+                    result.sort((a, b) => parseInt(b.commentCount || 0) - parseInt(a.commentCount || 0)); 
+                    break;
+                case 'duration': 
+                    result.sort((a, b) => parseDuration(b.duration) - parseDuration(a.duration)); 
+                    break;
+                case 'channel': 
+                    result.sort((a, b) => a.channelName.localeCompare(b.channelName)); 
+                    break;
+                default: 
+                    result.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
             }
             
             filteredVideos = result;
