@@ -880,4 +880,203 @@
                     <h3 class="video-title">
                         <a href="https://www.youtube.com/watch?v=${video.id}" target="_blank">${video.title}</a>
                     </h3>
-                    <div class="video-
+                    <div class="video-meta">
+                        <span class="channel-name" onclick="filterByChannel('${video.channelName.replace(/'/g, "\\'")}')">${video.channelName}</span>
+                        <span>📅 ${formatDate(video.publishedDate)}</span>
+                        ${durationDisplay}
+                    </div>
+                    <div class="stats-row">${statsHtml}</div>
+                    ${topics.length > 0 ? `<div class="topic-tags">${topics.map(t => `<span class="topic-tag" onclick="filterByTopic('${t}')">#${t}</span>`).join('')}</div>` : ''}
+                    ${topPlayers.length > 0 ? `<div class="player-mentions">🏀 ${topPlayers.map(([name, count]) => `<span class="clickable-name" onclick="filterByName('${name.replace(/'/g, "\\'")}')">${name}</span> (${count})`).join(', ')}</div>` : ''}
+                    ${teams.length > 0 ? `<div class="team-mentions">🏆 ${teams.slice(0, 3).map(team => `<span class="clickable-name" onclick="filterByName('${team}')">${team}</span>`).join(', ')}</div>` : ''}
+                    ${relatedHtml}
+                    ${video.description ? `<div class="video-description collapsed" onclick="toggleDescription(event)">${video.description}<div class="expand-hint">Click to expand ▼</div></div>` : ''}
+                    ${summaryHtml}
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        function filterVideos() {
+            let result = allVideos;
+            
+            if (channelFilter) result = result.filter(v => v.channelName === channelFilter);
+            
+            // SEARCH: No time limit, search all videos
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                result = result.filter(v => {
+                    const fullText = `${v.title} ${v.channelName} ${v.description}`.toLowerCase();
+                    const topics = extractTopics(fullText).join(' ').toLowerCase();
+                    const playerNames = Object.keys(detectPlayers(fullText)).join(' ').toLowerCase();
+                    const teamNames = detectTeams(fullText).join(' ').toLowerCase();
+                    return fullText.includes(query) || topics.includes(query) || playerNames.includes(query) || teamNames.includes(query);
+                });
+                // Sort search results by most recent first
+                result.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+                filteredVideos = result;
+                displayedCount = ITEMS_PER_LOAD;
+                renderVideos();
+                return;
+            }
+            
+            switch(currentFilter) {
+                case 'trending': 
+                    result = result.filter(v => isTrending(v.viewCount) && isRecent36Hours(v.publishedDate)); 
+                    break;
+                case 'new': 
+                    result = result.filter(v => isNew(v.publishedDate)); 
+                    break;
+            }
+            
+            // ALL SORTS FILTER TO 36 HOURS (except when searching)
+            switch(currentSort) {
+                case 'date':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
+                    result.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+                    break;
+                case 'views': 
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
+                    result.sort((a, b) => parseInt(b.viewCount) - parseInt(a.viewCount)); 
+                    break;
+                case 'hottest':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
+                    result.sort((a, b) => calculateEngagementRate(b) - calculateEngagementRate(a));
+                    break;
+                case 'discussed':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
+                    result.sort((a, b) => calculateDiscussionRate(b) - calculateDiscussionRate(a));
+                    break;
+                case 'likes':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
+                    result.sort((a, b) => parseInt(b.likeCount || 0) - parseInt(a.likeCount || 0)); 
+                    break;
+                case 'comments':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
+                    result.sort((a, b) => parseInt(b.commentCount || 0) - parseInt(a.commentCount || 0)); 
+                    break;
+                case 'duration':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
+                    result.sort((a, b) => parseDuration(b.duration) - parseDuration(a.duration)); 
+                    break;
+                case 'channel':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
+                    result.sort((a, b) => a.channelName.localeCompare(b.channelName)); 
+                    break;
+            }
+            
+            filteredVideos = result;
+            displayedCount = ITEMS_PER_LOAD;
+            renderVideos();
+        }
+        
+        function renderVideos() {
+            const grid = document.getElementById('videoGrid');
+            const videosToShow = filteredVideos.slice(0, displayedCount);
+            
+            if (videosToShow.length === 0) {
+                grid.innerHTML = '<div class="no-videos">No episodes found.</div>';
+                return;
+            }
+            
+            grid.innerHTML = '';
+            videosToShow.forEach((video, i) => {
+                const card = createVideoCard(video, i);
+                grid.appendChild(card);
+            });
+        }
+        
+        function handleScroll() {
+            if (isLoading) return;
+            const scrollPos = window.innerHeight + window.scrollY;
+            const pageHeight = document.documentElement.scrollHeight;
+            
+            if (scrollPos >= pageHeight - 500 && displayedCount < filteredVideos.length) {
+                isLoading = true;
+                document.getElementById('loadingSpinner').style.display = 'block';
+                setTimeout(() => {
+                    displayedCount += ITEMS_PER_LOAD;
+                    renderVideos();
+                    isLoading = false;
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                }, 500);
+            }
+        }
+        
+        async function loadVideos() {
+            try {
+                const response = await fetch(SHEET_CSV_URL);
+                if (!response.ok) throw new Error('Failed to fetch');
+                
+                const csvText = await response.text();
+                const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+                
+                if (!parsed.data || parsed.data.length === 0) {
+                    document.getElementById('videoGrid').innerHTML = '<div class="no-videos">No videos yet.</div>';
+                    return;
+                }
+                
+                allVideos = parsed.data.map(row => ({
+                    id: row['Video ID'],
+                    title: row['Title'],
+                    channelName: row['Channel Name'],
+                    channelId: row['Channel ID'],
+                    publishedDate: row['Published Date'],
+                    thumbnail: row['Thumbnail URL'],
+                    description: row['Description'] || '',
+                    viewCount: row['View Count'] || '0',
+                    subscriberCount: row['Subscriber Count'] || 'N/A',
+                    duration: row['Duration'] || '',
+                    likeCount: row['Like Count'] || '0',
+                    commentCount: row['Comment Count'] || '0',
+                    transcriptAvailable: row['Transcript Available'] || 'No',
+                    summary: row['AI Summary'] || ''
+                })).filter(v => v.id);
+                
+                renderTrending();
+                filterVideos();
+            } catch (error) {
+                document.getElementById('videoGrid').innerHTML = `<div class="error">Unable to load: ${error.message}</div>`;
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVideos();
+            document.getElementById('clearBtn').addEventListener('click', clearAllFilters);
+            
+            let searchTimeout;
+            document.getElementById('searchBar').addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    searchQuery = e.target.value;
+                    channelFilter = null;
+                    filterVideos();
+                }, 300);
+            });
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilter = btn.dataset.filter;
+                    filterVideos();
+                });
+            });
+            
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentSort = btn.dataset.sort;
+                    filterVideos();
+                });
+            });
+            
+            window.addEventListener('scroll', handleScroll);
+        });
+        
+        setInterval(loadVideos, 60 * 60 * 1000);
+    </script>
+</body>
+</html>
