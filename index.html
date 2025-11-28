@@ -904,32 +904,40 @@
                     break;
             }
             
+            // ALL SORTS NOW FILTER TO 36 HOURS
             switch(currentSort) {
+                case 'date':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
+                    result.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+                    break;
                 case 'views': 
                     result = result.filter(v => isRecent36Hours(v.publishedDate));
                     result.sort((a, b) => parseInt(b.viewCount) - parseInt(a.viewCount)); 
                     break;
                 case 'hottest':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
                     result.sort((a, b) => calculateEngagementRate(b) - calculateEngagementRate(a));
                     break;
                 case 'discussed':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
                     result.sort((a, b) => calculateDiscussionRate(b) - calculateDiscussionRate(a));
                     break;
-                case 'likes': 
+                case 'likes':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
                     result.sort((a, b) => parseInt(b.likeCount || 0) - parseInt(a.likeCount || 0)); 
                     break;
-                case 'comments': 
+                case 'comments':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
                     result.sort((a, b) => parseInt(b.commentCount || 0) - parseInt(a.commentCount || 0)); 
                     break;
-                case 'duration': 
+                case 'duration':
+                    result = result.filter(v => isRecent36Hours(v.publishedDate));
                     result.sort((a, b) => parseDuration(b.duration) - parseDuration(a.duration)); 
                     break;
-                case 'channel': 
+                case 'channel':
                     result = result.filter(v => isRecent36Hours(v.publishedDate));
                     result.sort((a, b) => a.channelName.localeCompare(b.channelName)); 
                     break;
-                default: 
-                    result.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
             }
             
             filteredVideos = result;
