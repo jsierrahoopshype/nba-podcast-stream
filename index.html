@@ -930,10 +930,10 @@
                     break;
             }
             
-            // ALL SORTS FILTER TO 36 HOURS (except when searching)
+            // SORTING
             switch(currentSort) {
                 case 'date':
-                    result = result.filter(v => isRecent36Hours(v.publishedDate));
+                    // NO TIME LIMIT - show all videos sorted by date
                     result.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
                     break;
                 case 'views': 
