@@ -7,84 +7,91 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+        }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f5f5f5;
-            padding: 20px;
+            padding: 15px;
             color: #333;
         }
         
-        .container { max-width: 1600px; margin: 0 auto; }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 3px solid #e74c3c;
+        .container { 
+            max-width: 1600px; 
+            margin: 0 auto;
+            overflow-x: hidden;
         }
-        
-        .header h1 { font-size: 36px; color: #2c3e50; margin-bottom: 10px; }
-        .header p { color: #7f8c8d; font-size: 16px; }
         
         .controls {
             background: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
         .search-row {
             display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 8px;
+            margin-bottom: 10px;
         }
         
         .search-bar {
             flex: 1;
-            padding: 12px 20px;
-            font-size: 16px;
+            padding: 8px 12px;
+            font-size: 13px;
             border: 2px solid #e0e0e0;
-            border-radius: 8px;
+            border-radius: 6px;
+            min-width: 0;
         }
         
         .search-bar:focus { outline: none; border-color: #e74c3c; }
         
         .clear-btn {
-            padding: 12px 24px;
+            padding: 8px 16px;
             background: #95a5a6;
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
-            transition: background 0.3s;
+            white-space: nowrap;
         }
         
         .clear-btn:hover { background: #7f8c8d; }
         
         .filters, .sort-controls {
             display: flex;
-            gap: 10px;
+            gap: 6px;
             flex-wrap: wrap;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
         }
         
         .filter-btn, .sort-btn {
-            padding: 8px 16px;
+            padding: 6px 12px;
             border: 2px solid #e0e0e0;
             background: white;
-            border-radius: 6px;
+            border-radius: 5px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 500;
+            white-space: nowrap;
         }
         
         .filter-btn:hover, .sort-btn:hover { border-color: #e74c3c; color: #e74c3c; }
         .filter-btn.active, .sort-btn.active { background: #e74c3c; color: white; border-color: #e74c3c; }
         
-        .sort-label { font-weight: 600; color: #555; align-self: center; }
+        .sort-label { 
+            font-weight: 600; 
+            color: #555; 
+            align-self: center;
+            font-size: 12px;
+            white-space: nowrap;
+        }
         
         .trending-section {
             background: white;
@@ -153,6 +160,7 @@
             grid-template-columns: repeat(3, 1fr);
             gap: 25px;
             margin-bottom: 30px;
+            width: 100%;
         }
         
         .video-card {
@@ -162,6 +170,7 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             transition: transform 0.2s;
             position: relative;
+            width: 100%;
         }
         
         .video-card:hover { transform: translateY(-4px); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
@@ -453,12 +462,15 @@
         
         @media (max-width: 900px) {
             .video-grid { grid-template-columns: 1fr; }
-            .header h1 { font-size: 28px; }
+            body { padding: 10px; }
+            .controls { padding: 10px; }
+            .search-bar { font-size: 12px; padding: 7px 10px; }
+            .filter-btn, .sort-btn { padding: 5px 10px; font-size: 11px; }
         }
     </style>
 </head>
 <body>
-
+    <div class="container">
         <div class="controls">
             <div class="search-row">
                 <input 
@@ -583,7 +595,6 @@
             const state = parseURL();
             if (!state.type) return;
             
-            // Convert slug back to readable format
             const readable = state.value.replace(/-/g, ' ');
             
             if (state.type === 'player' || state.type === 'topic') {
@@ -591,7 +602,6 @@
                 document.getElementById('searchBar').value = readable;
                 filterVideos();
             } else if (state.type === 'channel') {
-                // Find matching channel name
                 const channel = allVideos.find(v => createSlug(v.channelName) === state.value);
                 if (channel) {
                     channelFilter = channel.channelName;
